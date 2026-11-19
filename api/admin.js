@@ -3,9 +3,10 @@
 const crypto = require('crypto');
 const { db, getSettings, readQuestions, findSession, endsAtOf, logEvent, finalize, handler, UserError, DEFAULTS } = require('./_lib');
 
+// لو ADMIN_PASSWORD مش متحط في Vercel: لوحة الأدمن مفتوحة من غير باسورد
 function checkPassword(pw) {
   const real = process.env.ADMIN_PASSWORD || '';
-  if (!real) throw new UserError('لازم تحط ADMIN_PASSWORD في إعدادات Vercel الأول.');
+  if (!real) return;
   const a = crypto.createHash('sha256').update(String(pw || '')).digest();
   const b = crypto.createHash('sha256').update(real).digest();
   if (!crypto.timingSafeEqual(a, b)) throw new UserError('الباسورد غلط.');

@@ -119,7 +119,7 @@
       <button id="toggleOpen" class="sm"></button>
       <button id="notifBtn" class="ghost sm">🔔 فعّل الإشعارات</button>
       <a href="/" target="_blank"><button class="ghost sm">👁 صفحة الطلبة</button></a>
-      <button id="logout" class="ghost sm">خروج</button>
+      <button id="logout" class="ghost sm" title="الجهاز ده هيبطّل يفتكرك">خروج</button>
     </div>
   </header>
 
@@ -236,8 +236,14 @@
 (function () {
   const $ = id => document.getElementById(id);
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  // دخول من غير كتابة باسورد:
+  //  1) اللينك السري: /admin#الباسورد ← بيدخل على طول وبيفتكر الجهاز ده
+  //  2) بعد أول مرة الجهاز بيفتكرك، فـ /admin بس بتفتح على طول
   let pw = '';
-  try { pw = sessionStorage.getItem('admin_pw') || ''; } catch (e) {}
+  const fromLink = decodeURIComponent(location.hash.slice(1) || '');
+  if (fromLink) { pw = fromLink; history.replaceState(null, '', location.pathname); }   // نشيل الباسورد من شريط العنوان
+  else { try { pw = localStorage.getItem('admin_pw') || ''; } catch (e) {} }
+  let noPassword = false;
   let live = null, offset = 0, lastEventId = 0, firstLive = true, liveTimer = null, clockTimer = null;
   let results = [], questions = [], unseen = 0, tab = 'live';
 
@@ -255,16 +261,19 @@
     try {
       await refreshLive();
       $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('topRight').classList.remove('hidden');
-      try { sessionStorage.setItem('admin_pw', pw); } catch (e) {}
+      try { localStorage.setItem('admin_pw', pw); } catch (e) {}
       clearInterval(liveTimer); liveTimer = setInterval(() => refreshLive().catch(() => {}), 4000);
       clearInterval(clockTimer); clockTimer = setInterval(tickClocks, 1000);
       updateNotifBtn();
       call('questions').then(d => { questions = d.questions; renderActive(); }).catch(() => {});
-    } catch (e) { $('loginErr').textContent = e.message; }
+    } catch (e) {
+      try { localStorage.removeItem('admin_pw'); } catch (x) {}
+      $('loginErr').textContent = e.message;
+    }
   }
   $('loginBtn').onclick = () => { pw = $('pw').value; $('loginErr').textContent = ''; login(); };
   $('pw').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
-  $('logout').onclick = () => { try { sessionStorage.removeItem('admin_pw'); } catch (e) {} location.reload(); };
+  $('logout').onclick = () => { try { localStorage.removeItem('admin_pw'); } catch (e) {} location.reload(); };
 
   /* ---------- التابات ---------- */
   document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => openTab(b.dataset.tab));
@@ -635,7 +644,15 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   };
 
-  if (pw) login();
+  // بنجرّب ندخل على طول: لو مفيش باسورد متحط في Vercel اللوحة بتفتح من غير ما تكتب حاجة
+  (async () => {
+    $('login').classList.add('hidden');
+    if (!pw) {
+      try { await call('live', { since: 0 }); noPassword = true; } catch (e) {}
+    }
+    if (pw || noPassword) { await login(); if (noPassword) $('logout').classList.add('hidden'); }
+    if ($('app').classList.contains('hidden')) $('login').classList.remove('hidden');
+  })();
 })();
 </script>
 </body>

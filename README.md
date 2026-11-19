@@ -29,13 +29,13 @@
 
 ### 3) Vercel — نشر الموقع
 1. ادخل [vercel.com](https://vercel.com) بحساب GitHub بتاعك، واضغط **Add New ← Project**، واختار `coptic-exam` واضغط **Import**.
-2. افتح **Environment Variables** وضيف 3 متغيرات:
+2. افتح **Environment Variables** وضيف المتغيرات دي:
 
    | Name | Value |
    |---|---|
    | `SUPABASE_URL` | الـ Project URL من Supabase |
    | `SUPABASE_SERVICE_ROLE_KEY` | المفتاح السري من Supabase |
-   | `ADMIN_PASSWORD` | باسورد تختاره لصفحة النتائج |
+   | `ADMIN_PASSWORD` | (اختياري) باسورد للوحة الأدمن. لو سبته فاضي، `/admin` بتفتح من غير باسورد |
 
 3. اضغط **Deploy**. بعد دقيقة هيطلعلك لينك زي `https://coptic-exam.vercel.app`، وده لينك الامتحان اللي هتبعته للطلبة.
 4. صفحة النتائج هتلاقيها على نفس اللينك وفي آخره `/admin`.

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>النتائج — أستاذ مينا</title>
+<link rel="icon" href="logo.webp">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --maroon:#6b1f14; --maroon-2:#8a2b1c; --gold:#c9a24b; --gold-2:#e3c77c; --gold-dark:#8f6d25;
+          --bg:#f5eedd; --card:#fffdf7; --text:#2b1d14; --muted:#76665a; --danger:#b3261e; --ok:#2e7d32; --line:#e8dcc2; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  .wrap { max-width:1100px; margin:0 auto; padding:18px 16px 60px; }
+  header { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  header img { width:64px; height:64px; }
+  header h1 { margin:0; font-size:24px; color:var(--maroon); }
+  header .sub { color:var(--muted); font-size:14px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px; box-shadow:0 2px 10px rgba(107,31,20,.06); }
+  input { font:inherit; padding:11px 14px; border:1.5px solid var(--line); border-radius:10px; width:100%; max-width:320px; }
+  input:focus { outline:none; border-color:var(--gold); }
+  button { font:inherit; font-weight:700; border:0; border-radius:10px; padding:10px 18px; cursor:pointer;
+           background:linear-gradient(180deg,var(--maroon-2),var(--maroon)); color:#fff7e3; }
+  button.ghost { background:#f3e7c9; color:var(--maroon); }
+  button.danger { background:var(--danger); color:#fff; }
+  button.okb { background:var(--ok); color:#fff; }
+  button:disabled { opacity:.5; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:14px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; }
+  .stat b { display:block; font-size:28px; color:var(--maroon); }
+  .stat span { color:var(--muted); font-size:13px; }
+  .status { font-weight:800; padding:4px 14px; border-radius:30px; }
+  .status.open { background:#e8f3e8; color:var(--ok); } .status.closed { background:#fbe9e7; color:var(--danger); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { padding:9px 8px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top; }
+  th { background:#f3e7c9; color:var(--maroon); position:sticky; top:0; }
+  tr.r:hover { background:#fbf6ea; cursor:pointer; }
+  td.score { font-weight:800; direction:ltr; text-align:center; white-space:nowrap; }
+  .note { color:var(--danger); font-size:13px; }
+  .log { white-space:pre-line; color:var(--muted); font-size:13px; background:#faf4e6; }
+  .err { color:var(--danger); min-height:22px; }
+  .muted { color:var(--muted); }
+  .hidden { display:none !important; }
+  .scroll { overflow:auto; max-height:70vh; }
+  input.search { max-width:240px; padding:8px 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="logo.webp" alt="">
+    <div><h1>نتائج امتحان الطقس والقبطي</h1><div class="sub">صفحة أستاذ مينا</div></div>
+  </header>
+
+  <section id="login" class="card">
+    <p>اكتب باسورد الأدمن (ADMIN_PASSWORD اللي حطيته في Vercel):</p>
+    <div class="row"><input id="pw" type="password" autocomplete="current-password"><button id="loginBtn">دخول</button></div>
+    <div id="loginErr" class="err"></div>
+  </section>
+
+  <section id="panel" class="hidden">
+    <div class="card row" style="justify-content:space-between">
+      <div class="row">الامتحان: <span id="status" class="status"></span></div>
+      <div class="row">
+        <button id="toggleBtn"></button>
+        <button id="csvBtn" class="ghost">⬇ تحميل Excel (CSV)</button>
+        <button id="refreshBtn" class="ghost">↻ تحديث</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="sCount">0</b><span>سلّموا</span></div>
+      <div class="stat"><b id="sNow">0</b><span>بيمتحنوا دلوقتي</span></div>
+      <div class="stat"><b id="sAvg">—</b><span>متوسط الدرجات</span></div>
+      <div class="stat"><b id="sFlag">0</b><span>عليهم ملاحظات</span></div>
+    </div>
+    <div class="card">
+      <div class="row" style="justify-content:space-between;margin-bottom:10px">
+        <b>النتائج</b>
+        <input id="search" class="search" placeholder="بحث بالاسم">
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>#</th><th>الاسم</th><th>الدرجة</th><th>وقت التسليم</th><th>المدة</th><th>ملاحظة</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="muted" style="font-size:13px">اضغط على أي طالب عشان تشوف إجاباته.</p>
+    </div>
+    <div id="panelErr" class="err"></div>
+  </section>
+</div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  let pw = '', data = null, timer = null;
+  try { pw = sessionStorage.getItem('admin_pw') || ''; } catch (e) {}
+
+  async function call(body) {
+    const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ password: pw }, body)) });
+    let d = null; try { d = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error((d && d.error) || 'حصل خطأ');
+    return d;
+  }
+
+  async function load(extra) {
+    try {
+      data = await call(extra || {});
+      $('login').classList.add('hidden');
+      $('panel').classList.remove('hidden');
+      $('panelErr').textContent = '';
+      try { sessionStorage.setItem('admin_pw', pw); } catch (e) {}
+      render();
+      clearInterval(timer); timer = setInterval(() => load(), 30000);
+    } catch (e) {
+      if ($('panel').classList.contains('hidden')) { $('loginErr').textContent = e.message; }
+      else $('panelErr').textContent = e.message;
+    }
+  }
+
+  const fmt = d => d ? new Date(d).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  const txt = (el, t) => { el.textContent = t == null ? '' : t; return el; };
+
+  function render() {
+    const s = data.settings;
+    $('status').textContent = s.is_open ? 'مفتوح' : 'مقفول';
+    $('status').className = 'status ' + (s.is_open ? 'open' : 'closed');
+    $('toggleBtn').textContent = s.is_open ? '🔒 اقفل الامتحان' : '🔓 افتح الامتحان';
+    $('toggleBtn').className = s.is_open ? 'danger' : 'okb';
+
+    const res = data.results;
+    const cutoff = Date.now() - (s.minutes + 2) * 60000;
+    $('sCount').textContent = res.length;
+    $('sNow').textContent = data.inProgress.filter(x => new Date(x.started_at).getTime() > cutoff).length;
+    $('sAvg').textContent = res.length ? (res.reduce((a, r) => a + Number(r.score || 0), 0) / res.length).toFixed(1) + ' / ' + res[0].total : '—';
+    $('sFlag').textContent = res.filter(r => r.notes).length;
+
+    const q = $('search').value.trim();
+    const tb = $('rows'); tb.innerHTML = '';
+    res.filter(r => !q || String(r.name).includes(q)).forEach((r, i) => {
+      const tr = document.createElement('tr'); tr.className = 'r';
+      [i + 1, r.name, '\u2066' + r.score + ' / ' + r.total + '\u2069', fmt(r.submitted_at), (r.duration_min ?? '') + ' د', r.notes || ''].forEach((v, j) => {
+        const td = txt(document.createElement('td'), v);
+        if (j === 2) td.className = 'score';
+        if (j === 5) td.className = 'note';
+        tr.appendChild(td);
+      });
+      const det = document.createElement('tr'); det.className = 'hidden';
+      const td = txt(document.createElement('td'), r.answer_log); td.colSpan = 6; td.className = 'log';
+      det.appendChild(td);
+      tr.addEventListener('click', () => det.classList.toggle('hidden'));
+      tb.appendChild(tr); tb.appendChild(det);
+    });
+  }
+
+  function csv() {
+    const head = ['الاسم', 'الدرجة', 'من', 'وقت التسليم', 'المدة (دقيقة)', 'خرج من الصفحة', 'محاولات تصوير', 'ملاحظة', 'الإجابات'];
+    const esc = v => { v = v == null ? '' : String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+    const lines = [head.map(esc).join(',')].concat(data.results.map(r =>
+      [r.name, r.score, r.total, fmt(r.submitted_at), r.duration_min, r.leaves, r.shots, r.notes, r.answer_log].map(esc).join(',')));
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'نتائج-امتحان-الطقس-والقبطي.csv';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  $('loginBtn').addEventListener('click', () => { pw = $('pw').value; $('loginErr').textContent = ''; load(); });
+  $('pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
+  $('refreshBtn').addEventListener('click', () => load());
+  $('csvBtn').addEventListener('click', csv);
+  $('search').addEventListener('input', render);
+  $('toggleBtn').addEventListener('click', async () => {
+    $('toggleBtn').disabled = true;
+    await load({ action: 'setOpen', open: !data.settings.is_open });
+    $('toggleBtn').disabled = false;
+  });
+  if (pw) load();
+})();
+</script>
+</body>
+</html>

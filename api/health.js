@@ -46,10 +46,10 @@ module.exports = async (req, res) => {
 
   if (SUPABASE_URL && SUPABASE_KEY) {
     const tests = [
-      ['جدول الامتحانات (exams)', 'exams?select=id,status,max_leaves&limit=1', 'exams'],
+      ['جدول الامتحانات (exams)', 'exams?select=id,status,max_leaves,shuffle&limit=1', 'exams'],
       ['جدول الأسئلة (questions)', 'questions?select=id,exam_id,type,choices,answer,image&limit=1', 'questions'],
       ['جدول الصور (images)', 'images?select=id&limit=1', 'images'],
-      ['جدول الطلبة (sessions)', 'sessions?select=token,exam_id,name_key,deadline,last_seen&limit=1', 'sessions'],
+      ['جدول الطلبة (sessions)', 'sessions?select=token,exam_id,name_key,deadline,last_seen,q_order&limit=1', 'sessions'],
       ['جدول الإشعارات (events)', 'events?select=id,exam_id&limit=1', 'events']
     ];
     for (const [label, path, table] of tests) {

@@ -1,5 +1,5 @@
 // لو الطالب عمل refresh: يكمّل بنفس الوقت، ولو كان سلّم يشوف نتيجته (للعرض بس)
-const { getExam, readQuestions, findSession, examPayload, grade, resultFor, finalize, handler } = require('./_lib');
+const { getExam, readQuestions, findSession, examPayload, grade, resultFor, finalize, permFor, handler } = require('./_lib');
 
 module.exports = handler(async ({ token }) => {
   const sess = await findSession(token);
@@ -10,7 +10,7 @@ module.exports = handler(async ({ token }) => {
 
   let res;
   if (sess.submitted_at) {
-    res = resultFor(grade(qs, sess.answers || []), exam);
+    res = resultFor(grade(qs, sess.answers || []), exam, permFor(sess, qs));
   } else if (exam.status !== 'published') {
     // الأدمن قفل الامتحان وهو لسه بيمتحن: يتسلّم بآخر إجابات اتحفظت
     res = await finalize(sess, exam, qs, sess.answers || [], 'اتسلّم تلقائي: الامتحان اتقفل');

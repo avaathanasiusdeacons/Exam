@@ -1,5 +1,5 @@
 // الطالب اختار امتحان وضغط "ابدأ": بنسجّل وقت البدء على السيرفر
-const { db, getExam, readQuestions, examPayload, handler, UserError, nameKey } = require('./_lib');
+const { db, getExam, readQuestions, examPayload, handler, UserError, nameKey, shuffledIds } = require('./_lib');
 
 module.exports = handler(async ({ name, examId }) => {
   const exam = await getExam(examId);
@@ -15,7 +15,7 @@ module.exports = handler(async ({ name, examId }) => {
 
   let rows;
   try {
-    rows = await db('sessions', { method: 'POST', body: { exam_id: exam.id, name, name_key: key }, prefer: 'return=representation' });
+    rows = await db('sessions', { method: 'POST', body: { exam_id: exam.id, name, name_key: key, q_order: exam.shuffle === false ? null : shuffledIds(qs) }, prefer: 'return=representation' });
   } catch (e) {
     if (/Supabase 409/.test(e.message) || /23505/.test(e.message)) {
       throw new UserError('الاسم ده دخل الامتحان ده قبل كده. لو ده اسمك ومحتاج تدخل تاني، كلّم المدرس.');

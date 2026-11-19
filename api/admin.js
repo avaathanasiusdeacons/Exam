@@ -28,7 +28,7 @@ async function sessionOrFail(token) {
   return s;
 }
 
-const EXAM_FIELDS = ['title', 'status', 'minutes', 'grace_seconds', 'max_leaves', 'show_score', 'show_review', 'review_show_correct'];
+const EXAM_FIELDS = ['title', 'status', 'minutes', 'grace_seconds', 'max_leaves', 'show_score', 'show_review', 'review_show_correct', 'shuffle'];
 function cleanExam(x) {
   const out = {};
   if ('title' in x) out.title = str(x.title, 150).trim() || 'امتحان جديد';
@@ -36,7 +36,7 @@ function cleanExam(x) {
   if ('minutes' in x) out.minutes = toInt(x.minutes, 1, 600, 15);
   if ('grace_seconds' in x) out.grace_seconds = toInt(x.grace_seconds, 0, 600, 20);
   if ('max_leaves' in x) out.max_leaves = toInt(x.max_leaves, 0, 100, 3);
-  ['show_score', 'show_review', 'review_show_correct'].forEach(k => { if (k in x) out[k] = !!x[k]; });
+  ['show_score', 'show_review', 'review_show_correct', 'shuffle'].forEach(k => { if (k in x) out[k] = !!x[k]; });
   return out;
 }
 
@@ -75,7 +75,7 @@ const actions = {
     const sinceId = toInt(since, 0, Number.MAX_SAFE_INTEGER, 0);
     const today = new Date(); today.setUTCHours(0, 0, 0, 0);
     let [exams, events, active, doneToday] = await Promise.all([
-      db('exams?select=id,title,status,minutes,grace_seconds,max_leaves,show_score,show_review,review_show_correct'),
+      db('exams?select=id,title,status,minutes,grace_seconds,max_leaves,show_score,show_review,review_show_correct,shuffle'),
       db('events?id=gt.' + sinceId + '&select=*&order=id.desc&limit=100'),
       db('sessions?submitted_at=is.null&select=token,name,exam_id,started_at,deadline,last_seen,leaves,shots,answers&order=started_at.desc&limit=500'),
       db('sessions?submitted_at=gte.' + enc(today.toISOString()) + '&select=token')
@@ -283,6 +283,13 @@ const actions = {
   async endAll({ examId }) {
     const filter = examId ? '&exam_id=eq.' + ID(examId) : '';
     await db('sessions?submitted_at=is.null' + filter, { method: 'PATCH', body: { deadline: new Date().toISOString() } });
+    return { ok: true };
+  },
+
+  // مسح الإشعارات (لحد آخر إشعار ظاهر عند الأدمن) — الدرجات والملاحظات مش بتتأثر
+  async clearEvents({ upTo }) {
+    const n = toInt(upTo, 0, Number.MAX_SAFE_INTEGER, 0);
+    if (n) await db('events?id=lte.' + n, { method: 'DELETE' });
     return { ok: true };
   },
 

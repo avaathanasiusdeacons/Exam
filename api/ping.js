@@ -3,7 +3,7 @@
 //  - بتسجّل إشعار للأدمن (فلان خرج / رجع / حاول يصوّر)
 //  - بترجّع آخر ميعاد (لو الأدمن زوّد وقت) أو إن الامتحان اتسلّم
 const { db, enc, getExam, readQuestions, findSession, grade, resultFor, finalize, sanitizeAnswers,
-        endsAtOf, logEvent, handler } = require('./_lib');
+        endsAtOf, logEvent, permFor, toCanonical, handler } = require('./_lib');
 
 const EVENTS = { leave: 'leave', back: 'back', shot: 'shot' };
 
@@ -14,13 +14,14 @@ module.exports = handler(async ({ token, answers, event }) => {
   if (!exam) return { gone: true };
   const done = res => Object.assign(res, { submitted: true, name: sess.name, examId: exam.id, title: exam.title });
 
+  const qs = await readQuestions(exam.id);
   if (sess.submitted_at) {
-    const qs = await readQuestions(exam.id);
-    return done(resultFor(grade(qs, sess.answers || []), exam));
+    return done(resultFor(grade(qs, sess.answers || []), exam, permFor(sess, qs)));
   }
 
   const patch = { last_seen: new Date().toISOString() };
-  if (Array.isArray(answers)) patch.answers = sanitizeAnswers(answers);
+  // الطالب باعت الإجابات بترتيبه هو ← بتتحفظ بالترتيب الأصلي
+  if (Array.isArray(answers)) patch.answers = toCanonical(sanitizeAnswers(answers), permFor(sess, qs), qs.length);
   const type = EVENTS[event];
   if (type === 'leave') patch.leaves = (sess.leaves || 0) + 1;
   if (type === 'shot') patch.shots = (sess.shots || 0) + 1;
@@ -35,7 +36,6 @@ module.exports = handler(async ({ token, answers, event }) => {
   // الأدمن قفل الامتحان، أو الطالب عدّى الحد المسموح للخروج ← يتسلّم لوحده بآخر إجابات
   const forcedByLeaves = type === 'leave' && exam.max_leaves > 0 && patch.leaves >= exam.max_leaves;
   if (exam.status !== 'published' || forcedByLeaves) {
-    const qs = await readQuestions(exam.id);
     const note = forcedByLeaves ? 'اتسلّم تلقائي: خرج من الصفحة ' + patch.leaves + ' مرات' : 'اتسلّم تلقائي: الامتحان اتقفل';
     const res = await finalize(sess, exam, qs, sess.answers || [], note);
     return done(Object.assign(res, { forced: forcedByLeaves ? 'leaves' : 'closed' }));

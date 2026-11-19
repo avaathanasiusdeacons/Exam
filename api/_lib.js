@@ -102,10 +102,11 @@ function grade(qs, answers) {
   return { score, total, log, review, marks };
 }
 
-function resultFor(g, exam) {
+function resultFor(g, exam, perm) {
   const res = { showScore: !!exam.show_score, score: exam.show_score ? g.score : null, total: exam.show_score ? g.total : null };
   if (exam.show_review) {
-    res.review = g.review.map(r => {
+    const review = perm ? perm.map(ci => g.review[ci]).filter(Boolean) : g.review;
+    res.review = review.map(r => {
       const x = Object.assign({}, r);
       if (!exam.review_show_correct) { delete x.correct; delete x.correctText; }
       return x;
@@ -129,7 +130,35 @@ function endsAtOf(sess, exam) {
   return new Date(sess.started_at).getTime() + exam.minutes * 60000;
 }
 
+/* ---------- ترتيب الأسئلة لكل طالب ----------
+   الإجابات بتتخزن دايمًا بالترتيب الأصلي للامتحان (عشان النتائج والـ Excel يبقوا مظبوطين)،
+   والطالب بيشوف الأسئلة بالترتيب العشوائي اللي اتحدد له أول ما دخل (q_order). */
+function shuffledIds(qs) {
+  const ids = qs.map(q => q.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = require('crypto').randomInt(i + 1);
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  return ids;
+}
+// perm[k] = رقم السؤال (بالترتيب الأصلي) اللي بيظهر في المكان k عند الطالب
+function permFor(sess, qs) {
+  const order = Array.isArray(sess && sess.q_order) ? sess.q_order : null;
+  if (!order) return qs.map((_, i) => i);
+  const pos = new Map(qs.map((q, i) => [q.id, i]));
+  const perm = order.map(id => pos.get(id)).filter(i => i !== undefined);
+  qs.forEach((q, i) => { if (!perm.includes(i)) perm.push(i); });   // سؤال اتضاف بعد ما دخل
+  return perm;
+}
+const toCanonical = (answers, perm, n) => {
+  const out = Array(n).fill('');
+  (Array.isArray(answers) ? answers : []).forEach((a, k) => { if (perm[k] !== undefined) out[perm[k]] = a == null ? '' : a; });
+  return out;
+};
+const toSessionOrder = (answers, perm) => perm.map(ci => (Array.isArray(answers) && answers[ci] != null ? answers[ci] : ''));
+
 function examPayload(sess, exam, qs) {
+  const perm = permFor(sess, qs);
   return {
     token: sess.token,
     examId: exam.id,
@@ -140,8 +169,8 @@ function examPayload(sess, exam, qs) {
     serverNow: Date.now(),
     maxLeaves: exam.max_leaves || 0,
     leaves: sess.leaves || 0,
-    answers: Array.isArray(sess.answers) ? sess.answers : [],
-    questions: publicQuestions(qs)
+    answers: toSessionOrder(sess.answers, perm),
+    questions: publicQuestions(perm.map(ci => qs[ci]))
   };
 }
 
@@ -179,14 +208,15 @@ async function finalize(sess, exam, qs, answers, extraNote) {
       answer_log: g.log.join('\n')
     }
   });
+  const perm = permFor(sess, qs);
   if (!updated || !updated.length) {
     const fresh = await findSession(sess.token);
-    const again = resultFor(grade(qs, (fresh && fresh.answers) || []), exam);
+    const again = resultFor(grade(qs, (fresh && fresh.answers) || []), exam, perm);
     again.already = true;
     return again;
   }
   await logEvent(sess, 'submit', g.score + ' / ' + g.total + (extraNote ? ' — ' + extraNote : ''));
-  return resultFor(g, exam);
+  return resultFor(g, exam, perm);
 }
 
 // غلاف موحّد لكل endpoint: POST + JSON، والأخطاء بتترجع رسالة واضحة
@@ -211,5 +241,6 @@ module.exports = {
   SUPABASE_URL, SUPABASE_KEY, db, enc, toInt, UserError, handler,
   getExam, readQuestions, normQuestion, publicQuestions, grade, resultFor, parsePicks,
   findSession, endsAtOf, examPayload, sanitizeAnswers, logEvent, finalize,
+  shuffledIds, permFor, toCanonical, toSessionOrder,
   stripTags, norm, nameKey
 };

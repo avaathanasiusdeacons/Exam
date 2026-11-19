@@ -1,0 +1,6 @@
+{
+  "name": "coptic-exam",
+  "private": true,
+  "description": "امتحان الطقس والقبطي — مدرسة البابا أثناسيوس الرسولي للألحان",
+  "engines": { "node": ">=18" }
+}

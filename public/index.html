@@ -90,7 +90,6 @@
   .demo { background:#fff3cd; color:#664d03; padding:8px 12px; border-radius:8px; margin-bottom:12px; font-size:14px; }
 
   /* حماية: علامة مائية باسم الطالب + حجب الصفحة لما يسيبها */
-  #watermark { position:fixed; inset:0; pointer-events:none; z-index:15; opacity:.11; background-repeat:repeat; }
   body.shielded .wrap, body.shielded .bar, body.shielded .timer { filter:blur(22px); }
   #shield { position:fixed; inset:0; z-index:50; background:rgba(74,20,12,.94); color:#fff7e3; display:flex;
             flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:24px; gap:14px; }
@@ -122,7 +121,6 @@
 </head>
 <body oncontextmenu="return false">
 <div id="timer" class="timer hidden">00:00</div>
-<div id="watermark" class="hidden"></div>
 <div id="shield" class="hidden">
   <h3>⚠️ الامتحان متوقف مؤقتًا</h3>
   <p id="shieldMsg">خرجت من صفحة الامتحان. الوقت لسه شغال، وخروجك اتسجّل.</p>
@@ -257,18 +255,7 @@
   const guard = (function () {
     let active = false, review = false, leaves = 0, maxLeaves = 0, wmName = '', away = false;
     let report = () => {};
-    function watermark(name) {
-      if (!name) return;
-      wmName = name;
-      const stamp = new Date().toLocaleDateString('ar-EG');
-      const txt = (name + ' • ' + stamp).replace(/[<>&"]/g, '');
-      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180"><text x="160" y="95" font-size="17" ' +
-        'font-family="Cairo,Tahoma,sans-serif" font-weight="700" fill="#6b1f14" text-anchor="middle" ' +
-        'transform="rotate(-25 160 90)">' + txt + '</text></svg>';
-      const wm = $('watermark');
-      wm.style.backgroundImage = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
-      wm.classList.remove('hidden');
-    }
+    function watermark(name) { wmName = name || wmName; }   // العلامة المائية اتشالت
     function shieldOn(msg) {
       if (!active && !review) return;
       $('shieldMsg').textContent = msg;
@@ -318,7 +305,7 @@
     return {
       start(name, opts) { active = true; review = false; away = false; leaves = opts.leaves || 0; maxLeaves = opts.maxLeaves || 0; watermark(name); },
       reviewMode(name) { active = false; review = true; shieldOff(); watermark(name || wmName); },
-      off() { active = false; review = false; shieldOff(); $('watermark').classList.add('hidden'); },
+      off() { active = false; review = false; shieldOff(); },
       sync(l, max) { if (typeof l === 'number') leaves = Math.max(leaves, l); if (typeof max === 'number') maxLeaves = max; },
       onReport(fn) { report = fn; },
       stop() { active = false; }

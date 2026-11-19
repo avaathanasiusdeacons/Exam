@@ -21,7 +21,7 @@ async function db(path, { method = 'GET', body, prefer } = {}) {
 
 const DEFAULTS = {
   title: 'امتحان الطقس والقبطي', minutes: 15, grace_seconds: 20, is_open: true,
-  show_score: true, show_review: true, review_show_correct: true
+  show_score: true, show_review: true, review_show_correct: true, max_leaves: 3
 };
 async function getSettings() {
   const rows = await db('exam_settings?id=eq.1&select=*');
@@ -44,6 +44,12 @@ const TAG_RE = /\[(ath|newath|cs|shen)\]/i;
 const stripTags = s => String(s).replace(/\[\/?(ath|newath|cs|shen)\]/gi, '');
 const norm = s => String(s).trim().toLowerCase()
   .replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ' ');
+
+// مفتاح الاسم للمقارنة: "مينا  بخيت" = "مينا بخيت" = "ميـنا بخيت"
+const nameKey = s => String(s).normalize('NFKC').toLowerCase()
+  .replace(/[\u064B-\u0652\u0670\u0640]/g, '')        // التشكيل والتطويل
+  .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+  .replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
 // الأسئلة من غير الإجابات الصحيحة
 function publicQuestions(qs) {
@@ -105,16 +111,69 @@ async function findSession(token) {
   return rows && rows[0] ? rows[0] : null;
 }
 
+// آخر ميعاد للطالب: وقت إضافي خاص بيه (deadline) أو بداية الامتحان + المدة
+function endsAtOf(sess, s) {
+  if (sess.deadline) return new Date(sess.deadline).getTime();
+  return new Date(sess.started_at).getTime() + s.minutes * 60000;
+}
+
 function examPayload(sess, s, qs) {
   return {
     token: sess.token,
     name: sess.name,
     title: s.title,
     minutes: s.minutes,
-    endsAt: new Date(sess.started_at).getTime() + s.minutes * 60000,
+    endsAt: endsAtOf(sess, s),
     serverNow: Date.now(),
+    maxLeaves: s.max_leaves || 0,
+    leaves: sess.leaves || 0,
+    answers: Array.isArray(sess.answers) ? sess.answers : [],
     questions: publicQuestions(qs)
   };
+}
+
+const sanitizeAnswers = a => (Array.isArray(a) ? a : []).slice(0, 500).map(x => (x == null ? '' : String(x).slice(0, 500)));
+
+async function logEvent(sess, type, detail) {
+  try {
+    await db('events', { method: 'POST', body: { token: sess.token, name: sess.name, type, detail: detail || null } });
+  } catch (e) { console.error('event', e); }
+}
+
+// تسليم نهائي (من الطالب، أو تلقائي لما يخرج كتير): بيتسجّل مرة واحدة بس
+async function finalize(sess, s, qs, answers, extraNote) {
+  const now = Date.now();
+  const elapsed = (now - new Date(sess.started_at).getTime()) / 1000;
+  const late = now > endsAtOf(sess, s) + s.grace_seconds * 1000;
+  const g = grade(qs, answers);
+  const notes = [];
+  if (extraNote) notes.push(extraNote);
+  if (late) notes.push('اتسلّم بعد الوقت');
+  if (sess.deadline) notes.push('خد وقت إضافي');
+  if (sess.leaves && !(extraNote && extraNote.includes('خرج'))) notes.push('خرج من الصفحة ' + sess.leaves + ' مرة');
+  if (sess.shots) notes.push('حاول يصوّر ' + sess.shots + ' مرة');
+
+  const updated = await db('sessions?token=eq.' + encodeURIComponent(sess.token) + '&submitted_at=is.null', {
+    method: 'PATCH',
+    prefer: 'return=representation',
+    body: {
+      submitted_at: new Date(now).toISOString(),
+      answers,
+      score: g.score,
+      total: g.total,
+      duration_min: Math.round(elapsed / 6) / 10,
+      notes: notes.join(' • '),
+      answer_log: g.log.join('\n')
+    }
+  });
+  if (!updated || !updated.length) {
+    const fresh = await findSession(sess.token);
+    const again = resultFor(grade(qs, (fresh && fresh.answers) || []), s);
+    again.already = true;
+    return again;
+  }
+  await logEvent(sess, 'submit', g.score + ' / ' + g.total + (extraNote ? ' — ' + extraNote : ''));
+  return resultFor(g, s);
 }
 
 // غلاف موحّد لكل endpoint: POST + JSON، والأخطاء بتترجع رسالة واضحة للطالب
@@ -137,5 +196,6 @@ function handler(fn) {
 
 module.exports = {
   db, getSettings, readQuestions, publicQuestions, grade, resultFor, findSession,
-  examPayload, handler, UserError, stripTags, norm, correctIndex
+  examPayload, handler, UserError, stripTags, norm, correctIndex, nameKey,
+  endsAtOf, sanitizeAnswers, logEvent, finalize, DEFAULTS
 };

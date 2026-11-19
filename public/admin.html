@@ -4,182 +4,638 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>النتائج — أستاذ مينا</title>
+<title>لوحة أستاذ مينا — امتحان الطقس والقبطي</title>
 <link rel="icon" href="logo.webp">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
+  @font-face{font-family:"Athanasius";src:url(fonts/athanasius.ttf) format("truetype");font-display:block;}
+  @font-face{font-family:"New Athanasius";src:url(fonts/new-athanasius.ttf) format("truetype");font-display:block;}
+  @font-face{font-family:"CS New Athanasius";src:url(fonts/cs-new-athanasius.ttf) format("truetype");font-display:block;}
+  @font-face{font-family:"AvvaShenouda";src:url(fonts/avva-shenouda.ttf) format("truetype");font-display:block;}
   :root { --maroon:#6b1f14; --maroon-2:#8a2b1c; --gold:#c9a24b; --gold-2:#e3c77c; --gold-dark:#8f6d25;
-          --bg:#f5eedd; --card:#fffdf7; --text:#2b1d14; --muted:#76665a; --danger:#b3261e; --ok:#2e7d32; --line:#e8dcc2; }
+          --bg:#f5eedd; --card:#fffdf7; --text:#2b1d14; --muted:#76665a; --danger:#b3261e; --ok:#2e7d32; --line:#e8dcc2; --warn:#b26a00; }
   * { box-sizing:border-box; }
   body { margin:0; font-family:"Cairo","Segoe UI",Tahoma,Arial,sans-serif; background:var(--bg); color:var(--text); }
-  .wrap { max-width:1100px; margin:0 auto; padding:18px 16px 60px; }
-  header { display:flex; align-items:center; gap:14px; margin-bottom:16px; }
-  header img { width:64px; height:64px; }
-  header h1 { margin:0; font-size:24px; color:var(--maroon); }
-  header .sub { color:var(--muted); font-size:14px; }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px; box-shadow:0 2px 10px rgba(107,31,20,.06); }
-  input { font:inherit; padding:11px 14px; border:1.5px solid var(--line); border-radius:10px; width:100%; max-width:320px; }
-  input:focus { outline:none; border-color:var(--gold); }
-  button { font:inherit; font-weight:700; border:0; border-radius:10px; padding:10px 18px; cursor:pointer;
-           background:linear-gradient(180deg,var(--maroon-2),var(--maroon)); color:#fff7e3; }
+  .wrap { max-width:1200px; margin:0 auto; padding:14px 16px 60px; }
+  header.top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  header.top img { width:56px; height:56px; }
+  header.top h1 { margin:0; font-size:21px; color:var(--maroon); }
+  header.top .sub { color:var(--muted); font-size:13px; }
+  header.top .sp { flex:1; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; box-shadow:0 2px 10px rgba(107,31,20,.06); }
+  input, textarea, select { font:inherit; padding:9px 12px; border:1.5px solid var(--line); border-radius:10px; background:#fff; color:var(--text); }
+  input:focus, textarea:focus { outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,162,75,.2); }
+  textarea { width:100%; resize:vertical; min-height:60px; }
+  button { font:inherit; font-weight:700; border:0; border-radius:10px; padding:8px 16px; cursor:pointer;
+           background:linear-gradient(180deg,var(--maroon-2),var(--maroon)); color:#fff7e3; white-space:nowrap; }
   button.ghost { background:#f3e7c9; color:var(--maroon); }
   button.danger { background:var(--danger); color:#fff; }
   button.okb { background:var(--ok); color:#fff; }
-  button:disabled { opacity:.5; }
-  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:14px; }
-  .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; }
-  .stat b { display:block; font-size:28px; color:var(--maroon); }
-  .stat span { color:var(--muted); font-size:13px; }
-  .status { font-weight:800; padding:4px 14px; border-radius:30px; }
-  .status.open { background:#e8f3e8; color:var(--ok); } .status.closed { background:#fbe9e7; color:var(--danger); }
-  table { width:100%; border-collapse:collapse; font-size:14px; }
-  th, td { padding:9px 8px; border-bottom:1px solid var(--line); text-align:right; vertical-align:top; }
-  th { background:#f3e7c9; color:var(--maroon); position:sticky; top:0; }
-  tr.r:hover { background:#fbf6ea; cursor:pointer; }
-  td.score { font-weight:800; direction:ltr; text-align:center; white-space:nowrap; }
-  .note { color:var(--danger); font-size:13px; }
-  .log { white-space:pre-line; color:var(--muted); font-size:13px; background:#faf4e6; }
-  .err { color:var(--danger); min-height:22px; }
+  button.sm { padding:5px 10px; font-size:13px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   .muted { color:var(--muted); }
   .hidden { display:none !important; }
-  .scroll { overflow:auto; max-height:70vh; }
-  input.search { max-width:240px; padding:8px 12px; }
+  .err { color:var(--danger); min-height:20px; font-size:14px; }
+
+  .tabs { display:flex; gap:6px; margin-bottom:14px; flex-wrap:wrap; }
+  .tabs button { background:#efe3c4; color:var(--maroon); }
+  .tabs button.on { background:linear-gradient(180deg,var(--maroon-2),var(--maroon)); color:#fff7e3; }
+  .tabs .badge { background:var(--danger); color:#fff; border-radius:20px; padding:0 7px; font-size:12px; margin-inline-start:4px; }
+
+  .status { font-weight:800; padding:4px 14px; border-radius:30px; font-size:14px; }
+  .status.open { background:#e8f3e8; color:var(--ok); } .status.closed { background:#fbe9e7; color:var(--danger); }
+
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px; }
+  .stat { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px; text-align:center; }
+  .stat b { display:block; font-size:26px; color:var(--maroon); }
+  .stat span { color:var(--muted); font-size:13px; }
+
+  .grid2 { display:grid; grid-template-columns: 1.6fr 1fr; gap:14px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns:1fr; } }
+
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { padding:8px 6px; border-bottom:1px solid var(--line); text-align:right; vertical-align:middle; }
+  th { background:#f3e7c9; color:var(--maroon); position:sticky; top:0; z-index:1; }
+  td.num { direction:ltr; text-align:center; font-weight:700; white-space:nowrap; }
+  tr.flag td { background:#fff4f2; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-inline-end:5px; background:#bbb; }
+  .dot.on { background:#2e7d32; box-shadow:0 0 0 3px rgba(46,125,50,.2); } .dot.away { background:var(--danger); }
+  .time-low { color:var(--danger); }
+  .scroll { overflow:auto; max-height:64vh; }
+
+  .feed { max-height:64vh; overflow:auto; }
+  .ev { display:flex; gap:8px; padding:8px 4px; border-bottom:1px dashed var(--line); font-size:14px; align-items:flex-start; }
+  .ev .ic { font-size:18px; width:24px; text-align:center; }
+  .ev .tm { color:var(--muted); font-size:12px; margin-inline-start:auto; white-space:nowrap; }
+  .ev.leave, .ev.shot { background:#fff4f2; }
+  .ev.new { animation:flash 1.6s; }
+  @keyframes flash { 0% { background:#ffe08a; } }
+
+  .toasts { position:fixed; top:12px; left:12px; z-index:100; display:flex; flex-direction:column; gap:8px; max-width:340px; }
+  .toast { background:var(--maroon); color:#fff7e3; padding:12px 16px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.25);
+           border-inline-start:6px solid var(--gold); animation:tin .25s; font-size:15px; }
+  .toast.bad { border-color:#ff8a80; }
+  @keyframes tin { from { opacity:0; transform:translateY(-8px); } }
+
+  /* محرّر الأسئلة */
+  .qcard { border:1.5px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; background:#fff; }
+  .qcard.dirty { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,162,75,.18); }
+  .qcard.off { opacity:.6; }
+  .qhead { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
+  .qnum { display:inline-grid; place-items:center; width:30px; height:30px; border-radius:50%; background:var(--maroon); color:var(--gold-2); font-weight:800; }
+  .qch { display:grid; grid-template-columns: auto 1fr; gap:6px 10px; align-items:center; margin-top:8px; }
+  .qch label.right { display:flex; align-items:center; gap:4px; font-size:13px; color:var(--muted); white-space:nowrap; cursor:pointer; }
+  .qch label.right input { accent-color:var(--ok); width:18px; height:18px; }
+  .qch input[type=text] { width:100%; }
+  .prev { background:#faf4e6; border-radius:10px; padding:8px 12px; margin-top:8px; font-size:15px; line-height:1.8; }
+  .prev .opt { display:inline-block; border:1px solid var(--line); background:#fff; border-radius:8px; padding:0 10px; margin:2px 4px; }
+  .prev .opt.ok { border-color:#9bc99e; background:#e8f3e8; }
+  .cop { direction:ltr; unicode-bidi:isolate; font-size:1.3em; }
+  .f-ath { font-family:"Athanasius"; } .f-newath { font-family:"New Athanasius"; }
+  .f-cs { font-family:"CS New Athanasius"; } .f-shen { font-family:"AvvaShenouda"; }
+  .coptbar { position:sticky; top:0; z-index:5; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:12px; }
+  .seg { display:inline-flex; border:1.5px solid var(--line); border-radius:10px; overflow:hidden; }
+  .seg button { border-radius:0; background:#fff; color:var(--muted); padding:5px 12px; }
+  .seg button.on { background:var(--maroon); color:#fff7e3; }
+
+  .form { display:grid; grid-template-columns: 220px 1fr; gap:12px 16px; align-items:center; max-width:720px; }
+  .form .hint { grid-column:2; color:var(--muted); font-size:13px; margin-top:-8px; }
+  .switch { width:20px; height:20px; accent-color:var(--maroon); }
+  .center { text-align:center; }
+  .log { white-space:pre-line; color:var(--muted); font-size:13px; background:#faf4e6; }
+  input.search { max-width:220px; }
 </style>
 </head>
 <body>
+<div class="toasts" id="toasts"></div>
 <div class="wrap">
-  <header>
+  <header class="top">
     <img src="logo.webp" alt="">
-    <div><h1>نتائج امتحان الطقس والقبطي</h1><div class="sub">صفحة أستاذ مينا</div></div>
+    <div><h1>لوحة أستاذ مينا</h1><div class="sub">امتحان الطقس والقبطي — مدرسة البابا أثناسيوس الرسولي للألحان</div></div>
+    <div class="sp"></div>
+    <div id="topRight" class="row hidden">
+      <span id="status" class="status"></span>
+      <button id="toggleOpen" class="sm"></button>
+      <button id="notifBtn" class="ghost sm">🔔 فعّل الإشعارات</button>
+      <a href="/" target="_blank"><button class="ghost sm">👁 صفحة الطلبة</button></a>
+      <button id="logout" class="ghost sm">خروج</button>
+    </div>
   </header>
 
-  <section id="login" class="card">
+  <section id="login" class="card" style="max-width:460px">
     <p>اكتب باسورد الأدمن (ADMIN_PASSWORD اللي حطيته في Vercel):</p>
-    <div class="row"><input id="pw" type="password" autocomplete="current-password"><button id="loginBtn">دخول</button></div>
+    <div class="row"><input id="pw" type="password" autocomplete="current-password" style="flex:1"><button id="loginBtn">دخول</button></div>
     <div id="loginErr" class="err"></div>
   </section>
 
-  <section id="panel" class="hidden">
-    <div class="card row" style="justify-content:space-between">
-      <div class="row">الامتحان: <span id="status" class="status"></span></div>
-      <div class="row">
-        <button id="toggleBtn"></button>
-        <button id="csvBtn" class="ghost">⬇ تحميل Excel (CSV)</button>
-        <button id="refreshBtn" class="ghost">↻ تحديث</button>
+  <div id="app" class="hidden">
+    <nav class="tabs">
+      <button data-tab="live" class="on">📡 متابعة مباشرة<span id="evBadge" class="badge hidden"></span></button>
+      <button data-tab="questions">📝 الأسئلة</button>
+      <button data-tab="settings">⚙️ الإعدادات</button>
+      <button data-tab="results">📊 النتائج</button>
+    </nav>
+
+    <!-- متابعة مباشرة -->
+    <section id="tab-live">
+      <div class="stats">
+        <div class="stat"><b id="stActive">0</b><span>بيمتحنوا دلوقتي</span></div>
+        <div class="stat"><b id="stDone">0</b><span>سلّموا</span></div>
+        <div class="stat"><b id="stAway">0</b><span>برا الصفحة دلوقتي</span></div>
+        <div class="stat"><b id="stLeaves">0</b><span>مرات خروج (اللي بيمتحنوا)</span></div>
       </div>
-    </div>
-    <div class="stats">
-      <div class="stat"><b id="sCount">0</b><span>سلّموا</span></div>
-      <div class="stat"><b id="sNow">0</b><span>بيمتحنوا دلوقتي</span></div>
-      <div class="stat"><b id="sAvg">—</b><span>متوسط الدرجات</span></div>
-      <div class="stat"><b id="sFlag">0</b><span>عليهم ملاحظات</span></div>
-    </div>
-    <div class="card">
-      <div class="row" style="justify-content:space-between;margin-bottom:10px">
-        <b>النتائج</b>
-        <input id="search" class="search" placeholder="بحث بالاسم">
+      <div class="grid2">
+        <div class="card">
+          <div class="row" style="justify-content:space-between;margin-bottom:8px">
+            <b>الطلبة اللي بيمتحنوا</b>
+            <div class="row">
+              <span class="muted" style="font-size:13px">وقت إضافي:</span>
+              <input id="extraMin" type="number" min="1" max="180" value="5" style="width:70px;padding:5px 8px"> <span class="muted" style="font-size:13px">دقيقة</span>
+              <button id="endAll" class="danger sm">⛔ إنهاء الامتحان للكل</button>
+            </div>
+          </div>
+          <div class="scroll">
+            <table>
+              <thead><tr><th>الطالب</th><th>الوقت الباقي</th><th>جاوب</th><th>خروج</th><th></th></tr></thead>
+              <tbody id="activeRows"></tbody>
+            </table>
+            <p id="noActive" class="muted center">مفيش حد بيمتحن دلوقتي.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="row" style="justify-content:space-between;margin-bottom:6px"><b>الإشعارات</b><button id="clearFeed" class="ghost sm">مسح القائمة</button></div>
+          <div id="feed" class="feed"><p class="muted">أول ما طالب يخرج من الصفحة أو يسلّم هيظهر هنا.</p></div>
+        </div>
       </div>
-      <div class="scroll">
-        <table>
-          <thead><tr><th>#</th><th>الاسم</th><th>الدرجة</th><th>وقت التسليم</th><th>المدة</th><th>ملاحظة</th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table>
+    </section>
+
+    <!-- الأسئلة -->
+    <section id="tab-questions" class="hidden">
+      <div class="coptbar row" style="justify-content:space-between">
+        <div class="row">
+          <b>قبطي:</b>
+          <button class="ghost sm" data-wrap="ath">Athanasius</button>
+          <button class="ghost sm" data-wrap="shen">Avva Shenouda</button>
+          <button class="ghost sm" data-wrap="newath">New Athanasius</button>
+          <span class="muted" style="font-size:13px">ظلّل الكلام القبطي في أي خانة واضغط على الخط بتاعه</span>
+        </div>
+        <div class="row">
+          <span id="qTotal" class="muted"></span>
+          <button id="addQ">+ سؤال جديد</button>
+        </div>
       </div>
-      <p class="muted" style="font-size:13px">اضغط على أي طالب عشان تشوف إجاباته.</p>
-    </div>
-    <div id="panelErr" class="err"></div>
-  </section>
+      <div id="qList"></div>
+      <button id="addQ2" class="ghost">+ سؤال جديد</button>
+    </section>
+
+    <!-- الإعدادات -->
+    <section id="tab-settings" class="hidden">
+      <div class="card">
+        <div class="form">
+          <label>عنوان الامتحان</label><input id="s_title">
+          <label>مدة الامتحان (دقيقة)</label><input id="s_minutes" type="number" min="1" max="600" style="width:120px">
+          <div class="hint">بتتطبق على اللي بيمتحنوا دلوقتي كمان. لطالب واحد استخدم "وقت إضافي" من المتابعة المباشرة.</div>
+          <label>الامتحان مفتوح لدخول طلبة جداد</label><input id="s_is_open" type="checkbox" class="switch">
+          <label>عدد مرات الخروج المسموحة</label><input id="s_max_leaves" type="number" min="0" max="100" style="width:120px">
+          <div class="hint">لو الطالب خرج من الصفحة العدد ده، الامتحان بيتسلّم لوحده بآخر إجاباته. (0 = مفيش حد، بيتسجّل بس)</div>
+          <label>الطالب يشوف درجته</label><input id="s_show_score" type="checkbox" class="switch">
+          <label>الطالب يشوف التصحيح (صح/غلط)</label><input id="s_show_review" type="checkbox" class="switch">
+          <label>يظهر له الإجابة الصحيحة في التصحيح</label><input id="s_review_show_correct" type="checkbox" class="switch">
+          <label>سماحية بطء النت (ثانية)</label><input id="s_grace_seconds" type="number" min="0" max="600" style="width:120px">
+          <div></div><div class="row"><button id="saveSettings">💾 حفظ الإعدادات</button><span id="settingsMsg" class="muted"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- النتائج -->
+    <section id="tab-results" class="hidden">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <div class="row"><b>النتائج</b> <span id="resSummary" class="muted"></span></div>
+          <div class="row">
+            <input id="search" class="search" placeholder="بحث بالاسم">
+            <button id="csvBtn" class="ghost sm">⬇ تحميل Excel (CSV)</button>
+            <button id="refreshRes" class="ghost sm">↻ تحديث</button>
+          </div>
+        </div>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>#</th><th>الاسم</th><th>الدرجة</th><th>وقت التسليم</th><th>المدة</th><th>ملاحظة</th><th></th></tr></thead>
+            <tbody id="resRows"></tbody>
+          </table>
+        </div>
+        <p class="muted" style="font-size:13px">اضغط على اسم الطالب عشان تشوف إجاباته. "افتح تاني" بيرجّعه للامتحان بإجاباته القديمة ووقت إضافي، و"مسح" بيخليه يدخل من الأول.</p>
+      </div>
+    </section>
+    <div id="appErr" class="err"></div>
+  </div>
 </div>
 
 <script>
 (function () {
   const $ = id => document.getElementById(id);
-  let pw = '', data = null, timer = null;
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  let pw = '';
   try { pw = sessionStorage.getItem('admin_pw') || ''; } catch (e) {}
+  let live = null, offset = 0, lastEventId = 0, firstLive = true, liveTimer = null, clockTimer = null;
+  let results = [], questions = [], unseen = 0, tab = 'live';
 
-  async function call(body) {
+  async function call(action, body) {
     const r = await fetch('/api/admin', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(Object.assign({ password: pw }, body)) });
+      body: JSON.stringify(Object.assign({ password: pw, action }, body || {})) });
     let d = null; try { d = await r.json(); } catch (e) {}
     if (!r.ok) throw new Error((d && d.error) || 'حصل خطأ');
     return d;
   }
+  function fail(e) { $('appErr').textContent = e.message; setTimeout(() => { $('appErr').textContent = ''; }, 6000); }
 
-  async function load(extra) {
+  /* ---------- دخول ---------- */
+  async function login() {
     try {
-      data = await call(extra || {});
-      $('login').classList.add('hidden');
-      $('panel').classList.remove('hidden');
-      $('panelErr').textContent = '';
+      await refreshLive();
+      $('login').classList.add('hidden'); $('app').classList.remove('hidden'); $('topRight').classList.remove('hidden');
       try { sessionStorage.setItem('admin_pw', pw); } catch (e) {}
-      render();
-      clearInterval(timer); timer = setInterval(() => load(), 30000);
-    } catch (e) {
-      if ($('panel').classList.contains('hidden')) { $('loginErr').textContent = e.message; }
-      else $('panelErr').textContent = e.message;
-    }
+      clearInterval(liveTimer); liveTimer = setInterval(() => refreshLive().catch(() => {}), 4000);
+      clearInterval(clockTimer); clockTimer = setInterval(tickClocks, 1000);
+      updateNotifBtn();
+      call('questions').then(d => { questions = d.questions; renderActive(); }).catch(() => {});
+    } catch (e) { $('loginErr').textContent = e.message; }
+  }
+  $('loginBtn').onclick = () => { pw = $('pw').value; $('loginErr').textContent = ''; login(); };
+  $('pw').onkeydown = e => { if (e.key === 'Enter') $('loginBtn').click(); };
+  $('logout').onclick = () => { try { sessionStorage.removeItem('admin_pw'); } catch (e) {} location.reload(); };
+
+  /* ---------- التابات ---------- */
+  document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => openTab(b.dataset.tab));
+  function openTab(t) {
+    tab = t;
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+    ['live', 'questions', 'settings', 'results'].forEach(x => $('tab-' + x).classList.toggle('hidden', x !== t));
+    if (t === 'live') { unseen = 0; badge(); }
+    if (t === 'questions') loadQuestions();
+    if (t === 'settings') fillSettings();
+    if (t === 'results') loadResults();
   }
 
-  const fmt = d => d ? new Date(d).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '';
-  const txt = (el, t) => { el.textContent = t == null ? '' : t; return el; };
+  /* ---------- إشعارات ---------- */
+  const EV = {
+    leave:  ['🚪', 'خرج من صفحة الامتحان', true],
+    back:   ['↩️', 'رجع للامتحان', false],
+    shot:   ['📸', 'حاول يصوّر الامتحان', true],
+    submit: ['✅', 'سلّم الامتحان', false],
+    extra:  ['⏱', 'خد وقت إضافي', false],
+    reopen: ['🔓', 'اتفتحله الامتحان تاني', false],
+    ended:  ['⛔', 'اتنهى امتحانه', false]
+  };
+  function notifyEnabled() { return 'Notification' in window && Notification.permission === 'granted'; }
+  function updateNotifBtn() {
+    if (!('Notification' in window)) { $('notifBtn').classList.add('hidden'); return; }
+    $('notifBtn').textContent = notifyEnabled() ? '🔔 الإشعارات شغالة' : '🔕 فعّل إشعارات الكمبيوتر';
+  }
+  $('notifBtn').onclick = async () => { try { await Notification.requestPermission(); } catch (e) {} updateNotifBtn(); beep(); };
+  let actx = null;
+  function beep(bad) {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const o = actx.createOscillator(), g = actx.createGain();
+      o.frequency.value = bad ? 520 : 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.0001, actx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.25, actx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + (bad ? 0.5 : 0.25));
+      o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + 0.55);
+    } catch (e) {}
+  }
+  function toast(msg, bad) {
+    const t = el('div', 'toast' + (bad ? ' bad' : ''), msg);
+    $('toasts').prepend(t);
+    setTimeout(() => t.remove(), 7000);
+  }
+  function badge() { $('evBadge').textContent = unseen; $('evBadge').classList.toggle('hidden', !unseen); document.title = (unseen ? '(' + unseen + ') ' : '') + 'لوحة أستاذ مينا'; }
 
-  function render() {
-    const s = data.settings;
-    $('status').textContent = s.is_open ? 'مفتوح' : 'مقفول';
+  function addEvents(evs) {
+    if (!evs.length) return;
+    const feed = $('feed');
+    if (lastEventId === 0) feed.innerHTML = '';
+    evs.slice().reverse().forEach(ev => {    // من الأقدم للأحدث عشان الأحدث يبقى فوق
+      const [ic, label, bad] = EV[ev.type] || ['•', ev.type, false];
+      const row = el('div', 'ev ' + ev.type + (firstLive ? '' : ' new'));
+      row.appendChild(el('span', 'ic', ic));
+      const body = el('div');
+      body.appendChild(el('b', '', ev.name || '—'));
+      body.appendChild(document.createTextNode(' ' + label + (ev.detail ? ' — ' + ev.detail : '')));
+      row.appendChild(body);
+      row.appendChild(el('span', 'tm', new Date(ev.created_at).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit', second: '2-digit' })));
+      feed.prepend(row);
+      if (!firstLive) {
+        const text = (ev.name || '') + ' ' + label + (ev.detail && ev.type !== 'submit' ? ' (' + ev.detail + ')' : '') + (ev.type === 'submit' ? ' — ' + ev.detail : '');
+        if (['leave', 'shot', 'submit'].includes(ev.type)) {
+          toast(ic + ' ' + text, bad);
+          beep(bad);
+          if (notifyEnabled() && document.hidden) { try { new Notification(ic + ' ' + text, { icon: 'logo.webp', tag: 'ev' + ev.id }); } catch (e) {} }
+        }
+        if (tab !== 'live') { unseen++; badge(); }
+      }
+    });
+    lastEventId = Math.max(lastEventId, ...evs.map(e => e.id));
+    while (feed.children.length > 300) feed.lastChild.remove();
+  }
+  $('clearFeed').onclick = () => { $('feed').innerHTML = ''; };
+
+  /* ---------- متابعة مباشرة ---------- */
+  async function refreshLive() {
+    const d = await call('live', { since: lastEventId });
+    live = d;
+    offset = d.serverNow - Date.now();
+    renderTop(d.settings);
+    addEvents(d.events);
+    firstLive = false;
+    renderActive();
+    if (tab === 'results' && d.events.some(e => e.type === 'submit')) loadResults();
+  }
+
+  function renderTop(s) {
+    $('status').textContent = s.is_open ? 'الامتحان مفتوح' : 'الامتحان مقفول';
     $('status').className = 'status ' + (s.is_open ? 'open' : 'closed');
-    $('toggleBtn').textContent = s.is_open ? '🔒 اقفل الامتحان' : '🔓 افتح الامتحان';
-    $('toggleBtn').className = s.is_open ? 'danger' : 'okb';
+    $('toggleOpen').textContent = s.is_open ? '🔒 اقفل الدخول' : '🔓 افتح الدخول';
+    $('toggleOpen').className = 'sm ' + (s.is_open ? 'danger' : 'okb');
+  }
+  $('toggleOpen').onclick = async () => {
+    try { const d = await call('setOpen', { open: !live.settings.is_open }); live.settings = d.settings; renderTop(d.settings); }
+    catch (e) { fail(e); }
+  };
 
-    const res = data.results;
-    const cutoff = Date.now() - (s.minutes + 2) * 60000;
-    $('sCount').textContent = res.length;
-    $('sNow').textContent = data.inProgress.filter(x => new Date(x.started_at).getTime() > cutoff).length;
-    $('sAvg').textContent = res.length ? (res.reduce((a, r) => a + Number(r.score || 0), 0) / res.length).toFixed(1) + ' / ' + res[0].total : '—';
-    $('sFlag').textContent = res.filter(r => r.notes).length;
+  const fmtLeft = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
-    const q = $('search').value.trim();
-    const tb = $('rows'); tb.innerHTML = '';
-    res.filter(r => !q || String(r.name).includes(q)).forEach((r, i) => {
-      const tr = document.createElement('tr'); tr.className = 'r';
-      [i + 1, r.name, '\u2066' + r.score + ' / ' + r.total + '\u2069', fmt(r.submitted_at), (r.duration_min ?? '') + ' د', r.notes || ''].forEach((v, j) => {
-        const td = txt(document.createElement('td'), v);
-        if (j === 2) td.className = 'score';
-        if (j === 5) td.className = 'note';
-        tr.appendChild(td);
-      });
-      const det = document.createElement('tr'); det.className = 'hidden';
-      const td = txt(document.createElement('td'), r.answer_log); td.colSpan = 6; td.className = 'log';
-      det.appendChild(td);
-      tr.addEventListener('click', () => det.classList.toggle('hidden'));
-      tb.appendChild(tr); tb.appendChild(det);
+  function renderActive() {
+    const now = Date.now() + offset;
+    const list = live.active;
+    const tb = $('activeRows'); tb.innerHTML = '';
+    $('noActive').classList.toggle('hidden', list.length > 0);
+    const nq = (questions.length && questions.filter(q => q.active).length) || null;
+    let away = 0, leaves = 0;
+    list.forEach(x => {
+      const seen = x.last_seen ? now - new Date(x.last_seen).getTime() : Infinity;
+      const isAway = seen > 25000;
+      if (isAway) away++;
+      leaves += x.leaves || 0;
+      const tr = el('tr', (x.leaves || x.shots) ? 'flag' : '');
+      const n = el('td');
+      n.appendChild(el('span', 'dot ' + (isAway ? 'away' : 'on')));
+      n.appendChild(el('b', '', x.name));
+      if (isAway) n.appendChild(el('div', 'muted', 'مش على الصفحة' + (x.last_seen ? ' من ' + Math.round(seen / 60000) + ' د' : '')));
+      tr.appendChild(n);
+      const left = el('td', 'num clock'); left.dataset.ends = x.endsAt; tr.appendChild(left);
+      tr.appendChild(el('td', 'num', x.answered + (nq ? ' / ' + nq : '')));
+      tr.appendChild(el('td', 'num', (x.leaves || 0) + (x.shots ? ' • 📸' + x.shots : '')));
+      const act = el('td'); const r = el('div', 'row');
+      const plus = el('button', 'okb sm', '+ وقت'); plus.onclick = () => addTime(x);
+      const end = el('button', 'ghost sm', 'إنهاء'); end.onclick = () => endNow(x);
+      r.append(plus, end); act.appendChild(r); tr.appendChild(act);
+      tb.appendChild(tr);
+    });
+    $('stActive').textContent = list.length;
+    $('stDone').textContent = live.doneCount;
+    $('stAway').textContent = away;
+    $('stLeaves').textContent = leaves;
+    tickClocks();
+  }
+  function tickClocks() {
+    const now = Date.now() + offset;
+    document.querySelectorAll('.clock').forEach(c => {
+      const ms = Number(c.dataset.ends) - now;
+      c.textContent = fmtLeft(ms);
+      c.classList.toggle('time-low', ms < 60000);
     });
   }
+  async function addTime(x) {
+    const m = parseInt($('extraMin').value, 10) || 5;
+    try { await call('addTime', { token: x.token, minutes: m }); toast('⏱ ' + x.name + ': زيادة ' + m + ' دقيقة'); await refreshLive(); }
+    catch (e) { fail(e); }
+  }
+  async function endNow(x) {
+    if (!confirm('إنهاء امتحان ' + x.name + ' دلوقتي؟ هيتسلّم بإجاباته الحالية.')) return;
+    try { await call('endNow', { token: x.token }); await refreshLive(); } catch (e) { fail(e); }
+  }
+  $('endAll').onclick = async () => {
+    if (!live.active.length) return toast('مفيش حد بيمتحن دلوقتي');
+    if (!confirm('إنهاء الامتحان لكل اللي بيمتحنوا (' + live.active.length + ')؟ كله هيتسلّم بإجاباته الحالية.')) return;
+    try { await call('endAll'); await refreshLive(); } catch (e) { fail(e); }
+  };
 
-  function csv() {
-    const head = ['الاسم', 'الدرجة', 'من', 'وقت التسليم', 'المدة (دقيقة)', 'خرج من الصفحة', 'محاولات تصوير', 'ملاحظة', 'الإجابات'];
-    const esc = v => { v = v == null ? '' : String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
-    const lines = [head.map(esc).join(',')].concat(data.results.map(r =>
-      [r.name, r.score, r.total, fmt(r.submitted_at), r.duration_min, r.leaves, r.shots, r.notes, r.answer_log].map(esc).join(',')));
-    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'نتائج-امتحان-الطقس-والقبطي.csv';
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  /* ---------- الأسئلة ---------- */
+  const FONTS = { ath: 1, newath: 1, cs: 1, shen: 1 };
+  function richText(target, str) {
+    const re = /\[(ath|newath|cs|shen)\]([\s\S]*?)\[\/\1\]/gi;
+    let last = 0, m, group = null;
+    str = String(str || '');
+    while ((m = re.exec(str))) {
+      const between = str.slice(last, m.index);
+      if (between || !group) {
+        if (between) target.appendChild(document.createTextNode(between));
+        group = el('span', 'cop'); group.dir = 'ltr'; target.appendChild(group);
+      }
+      group.appendChild(el('span', 'f-' + m[1].toLowerCase(), m[2]));
+      last = re.lastIndex;
+    }
+    if (last < str.length) target.appendChild(document.createTextNode(str.slice(last)));
   }
 
-  $('loginBtn').addEventListener('click', () => { pw = $('pw').value; $('loginErr').textContent = ''; load(); });
-  $('pw').addEventListener('keydown', e => { if (e.key === 'Enter') $('loginBtn').click(); });
-  $('refreshBtn').addEventListener('click', () => load());
-  $('csvBtn').addEventListener('click', csv);
-  $('search').addEventListener('input', render);
-  $('toggleBtn').addEventListener('click', async () => {
-    $('toggleBtn').disabled = true;
-    await load({ action: 'setOpen', open: !data.settings.is_open });
-    $('toggleBtn').disabled = false;
+  let lastField = null;
+  document.addEventListener('focusin', e => { if (e.target.matches('.qcard textarea, .qcard input[type=text]')) lastField = e.target; });
+  document.querySelectorAll('[data-wrap]').forEach(b => {
+    b.onmousedown = e => e.preventDefault();   // ميخدش الفوكس من الخانة
+    b.onclick = () => {
+      const f = lastField;
+      if (!f || !document.body.contains(f)) return toast('اضغط الأول جوه الخانة وظلّل الكلام القبطي');
+      const tag = b.dataset.wrap, s = f.selectionStart, e = f.selectionEnd;
+      const sel = f.value.slice(s, e);
+      f.value = f.value.slice(0, s) + '[' + tag + ']' + sel + '[/' + tag + ']' + f.value.slice(e);
+      const pos = s + tag.length + 2 + sel.length;
+      f.focus(); f.setSelectionRange(sel ? pos + tag.length + 3 : pos, sel ? pos + tag.length + 3 : pos);
+      f.dispatchEvent(new Event('input', { bubbles: true }));
+    };
   });
-  if (pw) load();
+
+  async function loadQuestions() {
+    try { questions = (await call('questions')).questions; renderQuestions(); } catch (e) { fail(e); }
+  }
+  function renderQuestions() {
+    const box = $('qList'); box.innerHTML = '';
+    questions.forEach((q, i) => box.appendChild(qEditor(q, i)));
+    const act = questions.filter(q => q.active);
+    $('qTotal').textContent = act.length + ' سؤال • الدرجة الكلية ' + act.reduce((a, q) => a + Number(q.points || 0), 0);
+  }
+  function blankQ() { return { id: null, text: '', choice1: '', choice2: '', choice3: '', choice4: '', correct: '', points: 1, active: true, _new: true }; }
+  function addQuestion() {
+    questions.push(blankQ()); renderQuestions();
+    const last = $('qList').lastChild; last.scrollIntoView({ behavior: 'smooth', block: 'center' }); last.querySelector('textarea').focus();
+  }
+  $('addQ').onclick = addQuestion; $('addQ2').onclick = addQuestion;
+
+  function qEditor(q, i) {
+    const card = el('div', 'qcard' + (q.active ? '' : ' off') + (q._new ? ' dirty' : ''));
+    const isText = !!(q.id && !q.choice1 && !q.choice2);
+    let mode = isText ? 'text' : 'choice';
+    const head = el('div', 'qhead');
+    head.appendChild(el('span', 'qnum', String(i + 1)));
+    const seg = el('div', 'seg');
+    const bC = el('button', '', 'اختياري'), bT = el('button', '', 'مقالي');
+    seg.append(bC, bT); head.appendChild(seg);
+    head.appendChild(el('span', 'muted', 'الدرجة:'));
+    const pts = el('input'); pts.type = 'number'; pts.min = 0; pts.step = '0.5'; pts.value = q.points; pts.style.width = '80px'; head.appendChild(pts);
+    const actL = el('label', 'row muted'); const act = el('input'); act.type = 'checkbox'; act.className = 'switch'; act.checked = q.active !== false;
+    actL.append(act, document.createTextNode('ظاهر في الامتحان')); head.appendChild(actL);
+    head.appendChild(el('span', '', '')).style.flex = '1';
+    const up = el('button', 'ghost sm', '↑'), down = el('button', 'ghost sm', '↓');
+    const save = el('button', 'sm', '💾 حفظ'), del = el('button', 'danger sm', 'حذف');
+    head.append(up, down, save, del);
+    card.appendChild(head);
+
+    const text = el('textarea'); text.dir = 'auto'; text.placeholder = 'نص السؤال'; text.value = q.text || ''; text.rows = 2;
+    card.appendChild(text);
+
+    const chBox = el('div', 'qch');
+    const chInputs = [], radios = [];
+    const gname = 'r' + (q.id || ('n' + Math.random().toString(36).slice(2)));
+    for (let k = 1; k <= 4; k++) {
+      const lab = el('label', 'right'); const r = el('input'); r.type = 'radio'; r.name = gname; r.value = String(k);
+      if (String(q.correct) === String(k)) r.checked = true;
+      lab.append(r, document.createTextNode('الصح'));
+      const inp = el('input'); inp.type = 'text'; inp.dir = 'auto'; inp.placeholder = 'اختيار ' + k + (k > 2 ? ' (اختياري)' : ''); inp.value = q['choice' + k] || '';
+      chBox.append(lab, inp); chInputs.push(inp); radios.push(r);
+    }
+    card.appendChild(chBox);
+    const ansWrap = el('div'); ansWrap.style.marginTop = '8px';
+    const ans = el('input'); ans.type = 'text'; ans.dir = 'auto'; ans.placeholder = 'الإجابة الصحيحة'; ans.style.width = '100%';
+    ans.value = isText ? (q.correct || '') : '';
+    ansWrap.appendChild(ans); card.appendChild(ansWrap);
+    const prev = el('div', 'prev'); card.appendChild(prev);
+    const msg = el('div', 'err'); card.appendChild(msg);
+
+    function setMode(m) {
+      mode = m;
+      bC.classList.toggle('on', m === 'choice'); bT.classList.toggle('on', m === 'text');
+      chBox.classList.toggle('hidden', m !== 'choice'); ansWrap.classList.toggle('hidden', m !== 'text');
+      preview();
+    }
+    function preview() {
+      prev.innerHTML = '';
+      prev.appendChild(el('span', 'muted', 'معاينة: '));
+      richText(prev, text.value || '…');
+      if (mode === 'choice') {
+        prev.appendChild(el('br'));
+        chInputs.forEach((c, k) => { if (!c.value.trim()) return; const o = el('span', 'opt' + (radios[k].checked ? ' ok' : '')); richText(o, c.value); prev.appendChild(o); });
+      } else if (ans.value.trim()) {
+        prev.appendChild(el('br')); prev.appendChild(el('span', 'muted', 'الإجابة: ')); const o = el('span', 'opt ok'); richText(o, ans.value); prev.appendChild(o);
+      }
+    }
+    const dirty = () => { card.classList.add('dirty'); msg.textContent = ''; preview(); };
+    [text, pts, ans, ...chInputs].forEach(x => x.addEventListener('input', dirty));
+    [act, ...radios].forEach(x => x.addEventListener('change', dirty));
+    bC.onclick = () => { setMode('choice'); dirty(); }; bT.onclick = () => { setMode('text'); dirty(); };
+    setMode(mode);
+
+    save.onclick = async () => {
+      const body = { id: q.id, text: text.value, points: pts.value, active: act.checked };
+      if (mode === 'choice') {
+        chInputs.forEach((c, k) => body['choice' + (k + 1)] = c.value);
+        const r = radios.find(x => x.checked); body.correct = r ? r.value : '';
+      } else { body.choice1 = body.choice2 = body.choice3 = body.choice4 = ''; body.correct = ans.value; }
+      save.disabled = true;
+      try {
+        const d = await call('saveQuestion', { question: body });
+        questions[questions.indexOf(q)] = d.question;
+        renderQuestions(); toast('✅ السؤال ' + (i + 1) + ' اتحفظ');
+      } catch (e) { msg.textContent = e.message; }
+      save.disabled = false;
+    };
+    del.onclick = async () => {
+      if (q.id && !confirm('حذف السؤال ' + (i + 1) + '؟')) return;
+      try { if (q.id) await call('deleteQuestion', { id: q.id }); questions.splice(questions.indexOf(q), 1); renderQuestions(); }
+      catch (e) { fail(e); }
+    };
+    const move = async d => {
+      const j = i + d; if (j < 0 || j >= questions.length) return;
+      if (questions.some(x => !x.id)) return toast('احفظ الأسئلة الجديدة الأول');
+      [questions[i], questions[j]] = [questions[j], questions[i]];
+      renderQuestions();
+      try { await call('reorderQuestions', { ids: questions.map(x => x.id) }); } catch (e) { fail(e); }
+    };
+    up.onclick = () => move(-1); down.onclick = () => move(1);
+    return card;
+  }
+  window.addEventListener('beforeunload', e => { if (document.querySelector('.qcard.dirty')) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ---------- الإعدادات ---------- */
+  const SKEYS = ['title', 'minutes', 'is_open', 'max_leaves', 'show_score', 'show_review', 'review_show_correct', 'grace_seconds'];
+  function fillSettings() {
+    const s = live.settings;
+    SKEYS.forEach(k => { const f = $('s_' + k); if (f.type === 'checkbox') f.checked = !!s[k]; else f.value = s[k]; });
+    $('settingsMsg').textContent = '';
+  }
+  $('saveSettings').onclick = async () => {
+    const settings = {};
+    SKEYS.forEach(k => { const f = $('s_' + k); settings[k] = f.type === 'checkbox' ? f.checked : f.value; });
+    try {
+      const d = await call('saveSettings', { settings });
+      live.settings = d.settings; renderTop(d.settings); fillSettings();
+      $('settingsMsg').textContent = '✅ اتحفظ';
+      toast('✅ الإعدادات اتحفظت');
+    } catch (e) { $('settingsMsg').textContent = e.message; }
+  };
+
+  /* ---------- النتائج ---------- */
+  const fmt = d => d ? new Date(d).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  async function loadResults() {
+    try { results = (await call('results')).results; renderResults(); } catch (e) { fail(e); }
+  }
+  function renderResults() {
+    const q = $('search').value.trim();
+    const tb = $('resRows'); tb.innerHTML = '';
+    const avg = results.length ? (results.reduce((a, r) => a + Number(r.score || 0), 0) / results.length).toFixed(1) : '—';
+    $('resSummary').textContent = results.length + ' طالب • المتوسط ' + avg + (results[0] ? ' / ' + results[0].total : '');
+    results.filter(r => !q || String(r.name).includes(q)).forEach((r, i) => {
+      const tr = el('tr', r.notes && /خرج|يصوّر|تلقائي/.test(r.notes) ? 'flag' : '');
+      tr.appendChild(el('td', '', String(i + 1)));
+      const nm = el('td'); const b = el('b', '', r.name); b.style.cursor = 'pointer'; nm.appendChild(b); tr.appendChild(nm);
+      tr.appendChild(el('td', 'num', '⁦' + r.score + ' / ' + r.total + '⁩'));
+      tr.appendChild(el('td', '', fmt(r.submitted_at)));
+      tr.appendChild(el('td', '', (r.duration_min ?? '') + ' د'));
+      tr.appendChild(el('td', '', r.notes || ''));
+      const act = el('td'); const row = el('div', 'row');
+      const re = el('button', 'okb sm', 'افتح تاني'); re.onclick = () => reopen(r);
+      const dl = el('button', 'ghost sm', 'مسح'); dl.onclick = () => delSession(r);
+      row.append(re, dl); act.appendChild(row); tr.appendChild(act);
+      const det = el('tr', 'hidden'); const td = el('td', 'log', r.answer_log); td.colSpan = 7; det.appendChild(td);
+      b.onclick = () => det.classList.toggle('hidden');
+      tb.append(tr, det);
+    });
+  }
+  async function reopen(r) {
+    const m = parseInt(prompt('هيتفتحله الامتحان تاني بإجاباته القديمة. كام دقيقة؟', '5'), 10);
+    if (!m) return;
+    try { await call('addTime', { token: r.token, minutes: m }); toast('🔓 اتفتح لـ ' + r.name + ' ' + m + ' دقيقة'); await loadResults(); await refreshLive(); }
+    catch (e) { fail(e); }
+  }
+  async function delSession(r) {
+    if (!confirm('مسح ' + r.name + ' ونتيجته؟ هيقدر يدخل الامتحان من الأول بنفس الاسم.')) return;
+    try { await call('deleteSession', { token: r.token }); await loadResults(); } catch (e) { fail(e); }
+  }
+  $('search').oninput = renderResults;
+  $('refreshRes').onclick = loadResults;
+  $('csvBtn').onclick = () => {
+    const head = ['الاسم', 'الدرجة', 'من', 'وقت التسليم', 'المدة (دقيقة)', 'خرج من الصفحة', 'محاولات تصوير', 'ملاحظة', 'الإجابات'];
+    const esc = v => { v = v == null ? '' : String(v); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+    const lines = [head.map(esc).join(',')].concat(results.map(r =>
+      [r.name, r.score, r.total, fmt(r.submitted_at), r.duration_min, r.leaves, r.shots, r.notes, r.answer_log].map(esc).join(',')));
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'نتائج-امتحان-الطقس-والقبطي.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
+  if (pw) login();
 })();
 </script>
 </body>

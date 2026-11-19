@@ -97,6 +97,9 @@
   #shield h3 { margin:0; font-size:24px; color:var(--gold-2); }
   #shield p { margin:0; max-width:420px; line-height:1.8; }
   #shield button { background:var(--gold); color:var(--maroon); box-shadow:0 3px 0 var(--gold-dark); }
+  .toast { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:var(--maroon); color:var(--gold-2);
+           padding:12px 22px; border-radius:30px; z-index:60; font-weight:700; box-shadow:0 6px 20px rgba(0,0,0,.25); animation:tin .3s; }
+  @keyframes tin { from { opacity:0; transform:translate(-50%,-10px); } }
   @media print { body * { display:none !important; } body::after { content:"الطباعة غير مسموحة"; display:block; padding:40px; font-size:24px; } }
 </style>
 </head>
@@ -125,7 +128,7 @@
     <input id="nameInput" type="text" placeholder="اكتب اسمك بالكامل" autocomplete="name" maxlength="100">
     <div class="rules">
       • العدّاد بيبدأ أول ما تضغط <b>ابدأ الامتحان</b>، ولما الوقت يخلص الامتحان بيتسلّم لوحده.<br>
-      • <b>ممنوع</b> الخروج من الصفحة أو تصويرها، وأي خروج بيتسجّل عند أستاذ مينا.
+      • <b>ممنوع</b> الخروج من الصفحة أو تصويرها: أستاذ مينا بيوصله إشعار فورًا، ولو كررت الخروج الامتحان بيتسلّم لوحده.
     </div>
     <div id="startErr" class="err"></div>
     <button id="startBtn">ابدأ الامتحان</button>
@@ -172,14 +175,16 @@
   const ROUTES = {
     startExam: name => ['start', { name }],
     resumeExam: token => ['resume', { token }],
-    submitExam: (token, answers, meta) => ['submit', { token, answers, meta }]
+    submitExam: (token, answers) => ['submit', { token, answers }],
+    ping: (token, answers, event) => ['ping', { token, answers, event }]
   };
   async function api(fn, ...args) {
     if (!isLive) return demo[fn](...args);
     const [route, body] = ROUTES[fn](...args);
     let r;
     try {
-      r = await fetch('/api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      // keepalive: الإشعار يوصل حتى لو الطالب قفل الصفحة
+      r = await fetch('/api/' + route, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: route === 'ping' });
     } catch (e) { throw new Error('مفيش اتصال بالإنترنت، حاول تاني.'); }
     let data = null;
     try { data = await r.json(); } catch (e) {}
@@ -205,6 +210,7 @@
         ] };
     },
     resumeExam() { return null; },
+    ping() { return exam ? { endsAt: exam.endsAt, serverNow: Date.now() } : {}; },
     submitExam(token, answers) {
       const key = [1, 3, 1, 2, 1, 1, 1, 3, 1, 3];
       const qs = demo.startExam('معاينة').questions;
@@ -218,10 +224,8 @@
 
   /* ---------- الحماية من التصوير والخروج من الصفحة ---------- */
   const guard = (function () {
-    let active = false, review = false, token = null, leaves = 0, shots = 0, wmName = '';
-    const LS_G = 'exam_guard_';
-    function load() { try { const g = JSON.parse(store.get(LS_G + token)) || {}; leaves = g.l || 0; shots = g.s || 0; } catch (e) {} }
-    function save() { if (token) store.set(LS_G + token, JSON.stringify({ l: leaves, s: shots })); }
+    let active = false, review = false, leaves = 0, maxLeaves = 0, wmName = '', away = false;
+    let report = () => {};   // بيبعت الحدث للسيرفر ← إشعار عند أستاذ مينا
 
     // علامة مائية متكررة باسم الطالب: أي صورة تتاخد يبان مين صاحبها
     function watermark(name) {
@@ -249,23 +253,36 @@
     }
     $('shieldBtn').addEventListener('click', shieldOff);
 
-    function left() {
-      if (!$('shield').classList.contains('hidden')) return;   // نفس الخروجة متتحسبش مرتين (blur + visibilitychange)
-      if (active) { leaves++; save(); }
-      shieldOn(active
-        ? 'خرجت من صفحة الامتحان (' + leaves + ' مرة). الوقت لسه شغال، وخروجك اتسجّل عند أستاذ مينا.'
-        : 'رجّع للصفحة عشان تكمّل مراجعة إجاباتك.');
+    function leftMsg() {
+      let m = 'خرجت من صفحة الامتحان (' + leaves + ' مرة)، وأستاذ مينا وصله إشعار. الوقت لسه شغال.';
+      if (maxLeaves > 0) {
+        const rest = maxLeaves - leaves;
+        m += rest > 0 ? ' ⚠️ لو خرجت ' + rest + ' مرة كمان الامتحان هيتسلّم لوحده.' : '';
+      }
+      return m;
     }
-    document.addEventListener('visibilitychange', () => { if (document.hidden) left(); });
+    function left() {
+      if (away || !$('shield').classList.contains('hidden')) return;   // نفس الخروجة متتحسبش مرتين (blur + visibilitychange)
+      away = true;
+      if (active) { leaves++; report('leave'); }
+      shieldOn(active ? leftMsg() : 'رجّع للصفحة عشان تكمّل مراجعة إجاباتك.');
+    }
+    function back() {
+      if (!away) return;
+      away = false;
+      if (active) report('back');
+    }
+    document.addEventListener('visibilitychange', () => { if (document.hidden) left(); else back(); });
     window.addEventListener('blur', () => { if (!document.hidden) left(); });
+    window.addEventListener('focus', back);
 
     let lastShot = 0;
     function shot() {
       const now = Date.now();
       if (now - lastShot < 1500) return;   // نفس الضغطة (keydown + keyup) تتحسب مرة واحدة
       lastShot = now;
-      if (active) { shots++; save(); }
-      shieldOn('تصوير الامتحان غير مسموح، والمحاولة اتسجّلت عند أستاذ مينا.');
+      if (active) report('shot');
+      shieldOn('تصوير الامتحان غير مسموح، وأستاذ مينا وصله إشعار بالمحاولة.');
       try { navigator.clipboard && navigator.clipboard.writeText(' '); } catch (e) {}
     }
     // زراير التصوير والنسخ والطباعة وأدوات المطوّر
@@ -285,14 +302,55 @@
     window.addEventListener('beforeprint', () => shieldOn('الطباعة غير مسموحة.'));
 
     return {
-      start(name, tk) { token = tk; active = true; review = false; load(); watermark(name); },
+      start(name, opts) { active = true; review = false; away = false; leaves = opts.leaves || 0; maxLeaves = opts.maxLeaves || 0; watermark(name); },
       reviewMode(name) { active = false; review = true; shieldOff(); watermark(name || wmName); },
-      counts() { return { leaves, shots }; }
+      sync(l, max) { if (typeof l === 'number') leaves = Math.max(leaves, l); if (typeof max === 'number') maxLeaves = max; },
+      onReport(fn) { report = fn; },
+      stop() { active = false; }
     };
   })();
 
   /* ---------- الحالة ---------- */
-  let exam = null, answers = [], offset = 0, tick = null, submitting = false, finished = false;
+  let exam = null, answers = [], offset = 0, tick = null, beat = null, saveTimer = null, watchDone = null,
+      submitting = false, finished = false;
+
+  // نبضة للسيرفر: بتحفظ الإجابات، وبتجيب الوقت لو اتزوّد، وبتعرف لو الامتحان اتسلّم
+  async function ping(event) {
+    if (!exam || finished) return;
+    const t = exam.token;
+    try {
+      const res = await api('ping', t, exam.questions.map((_, i) => answers[i] == null ? '' : answers[i]), event || null);
+      if (!exam || exam.token !== t || finished) return;
+      if (!res || res.gone) return;
+      if (res.submitted) {
+        finishLocal();
+        done(res.forced ? 'الامتحان اتسلّم تلقائيًا لأنك خرجت من الصفحة أكتر من المسموح.' : 'الامتحان اتسلّم.', res);
+        return;
+      }
+      if (res.endsAt) {
+        if (res.endsAt > exam.endsAt + 30000) toast('⏱ أستاذ مينا زوّدلك وقت');
+        exam.endsAt = res.endsAt;
+        offset = res.serverNow - Date.now();
+      }
+      guard.sync(res.leaves, res.maxLeaves);
+    } catch (e) { /* النت فصل: هنحاول في النبضة الجاية */ }
+  }
+  guard.onReport(ev => ping(ev));
+
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 5000);
+  }
+
+  function finishLocal() {
+    finished = true;
+    clearInterval(tick); clearInterval(beat); clearTimeout(saveTimer);
+    guard.stop();
+    if (exam) store.del(LS_ANS + exam.token);
+  }
 
   function show(screen) {
     ['startScreen', 'examScreen', 'doneScreen'].forEach(id => $(id).classList.toggle('hidden', id !== screen));
@@ -304,17 +362,29 @@
 
   function begin(data) {
     exam = data;
+    finished = false; submitting = false;
+    clearInterval(tick); clearInterval(beat); clearInterval(watchDone);
+    $('examForm').classList.remove('locked');
+    $('submitBtn').disabled = false;
+    $('submitBtn').textContent = 'تسليم الامتحان';
+    $('submitBtn').dataset.confirm = '';
     offset = data.serverNow - Date.now();   // تصحيح فرق ساعة الجهاز
     store.set(LS_TOKEN, data.token);
-    try { answers = JSON.parse(store.get(LS_ANS + data.token)) || []; } catch (e) { answers = []; }
+    let local = [];
+    try { local = JSON.parse(store.get(LS_ANS + data.token)) || []; } catch (e) {}
+    // الإجابات: اللي على الجهاز، ولو مفيش (موبايل تاني أو اتفتحله تاني) اللي محفوظة على السيرفر
+    answers = local.some(a => String(a || '').trim()) ? local : (data.answers || []).slice();
     $('titleStart').textContent = data.title;
     document.title = data.title;
     $('studentName').textContent = data.name;
-    guard.start(data.name, data.token);
+    guard.start(data.name, { leaves: data.leaves, maxLeaves: data.maxLeaves });
     renderQuestions();
     show('examScreen');
+    window.scrollTo(0, 0);
     updateTimer();
     tick = setInterval(updateTimer, 250);
+    beat = setInterval(() => ping(), 10000);
+    ping();
   }
 
   function renderQuestions() {
@@ -382,6 +452,8 @@
     if (finished) return;
     answers[i] = v;
     store.set(LS_ANS + exam.token, JSON.stringify(answers));
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => ping(), 2500);   // الإجابة تتحفظ على السيرفر كمان
   }
 
   function updateTimer() {
@@ -395,8 +467,8 @@
   async function submit(auto) {
     if (submitting) return;
     if (!auto && !confirmSubmit()) return;
-    submitting = true; finished = true;
-    clearInterval(tick);
+    submitting = true;
+    finishLocal();
     $('examForm').classList.add('locked');
     $('submitBtn').disabled = true;
     $('submitBtn').textContent = 'جاري التسليم...';
@@ -404,8 +476,7 @@
     const payload = exam.questions.map((_, i) => answers[i] == null ? '' : answers[i]);
     for (let attempt = 1; attempt <= 5; attempt++) {
       try {
-        const res = await api('submitExam', exam.token, payload, guard.counts());
-        store.del(LS_ANS + exam.token);
+        const res = await api('submitExam', exam.token, payload);
         // التوكن بيفضل محفوظ: لو عمل refresh يشوف نتيجته ومراجعته بدل ما يبدأ امتحان جديد
         done(auto ? 'الوقت خلص والامتحان اتسلّم تلقائيًا.' : 'إجاباتك وصلت بنجاح.', res);
         return;
@@ -433,12 +504,20 @@
   function done(reason, res) {
     guard.reviewMode(res && res.name);
     $('doneReason').textContent = reason;
-    if (res && res.showScore) {
-      $('scoreVal').textContent = res.score + ' / ' + res.total;
-      $('scoreBox').classList.remove('hidden');
-    }
+    const showScore = !!(res && res.showScore && res.score != null);
+    $('scoreBox').classList.toggle('hidden', !showScore);
+    if (showScore) $('scoreVal').textContent = res.score + ' / ' + res.total;
     show('doneScreen');
     renderReview(res && res.review);
+    // لو أستاذ مينا فتحله الامتحان تاني (وقت إضافي) الصفحة بترجع للامتحان لوحدها
+    clearInterval(watchDone);
+    const t = store.get(LS_TOKEN);
+    if (t && isLive) watchDone = setInterval(async () => {
+      try {
+        const d = await api('resumeExam', t);
+        if (d && !d.submitted && d.questions) { clearInterval(watchDone); begin(d); toast('⏱ أستاذ مينا فتحلك الامتحان تاني'); }
+      } catch (e) {}
+    }, 15000);
   }
 
   // مراجعة بعد التسليم: نص بس، من غير أي خانات يقدر يغيّرها

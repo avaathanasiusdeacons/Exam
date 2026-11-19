@@ -259,6 +259,8 @@
             <div class="hint">بتتطبق على اللي بيمتحنوا دلوقتي كمان. لطالب واحد استخدم "+ وقت" من المتابعة المباشرة.</div>
             <label>عدد مرات الخروج المسموحة</label><input id="s_max_leaves" type="number" min="0" max="100" style="width:120px">
             <div class="hint">لو الطالب خرج من الصفحة العدد ده، الامتحان بيتسلّم لوحده بآخر إجاباته. (0 = مفيش حد، بيتسجّل بس)</div>
+            <label>ترتيب الأسئلة مختلف لكل طالب</label><input id="s_shuffle" type="checkbox" class="switch">
+            <div class="hint">كل طالب بياخد نفس الأسئلة بترتيب مختلف. النتائج والـ Excel والـ Word بيفضلوا بترتيبك الأصلي.</div>
             <label>الطالب يشوف درجته</label><input id="s_show_score" type="checkbox" class="switch">
             <label>الطالب يشوف التصحيح (صح/غلط)</label><input id="s_show_review" type="checkbox" class="switch">
             <label>يظهر له الإجابة الصحيحة في التصحيح</label><input id="s_review_show_correct" type="checkbox" class="switch">
@@ -398,7 +400,7 @@
   function addEvents(evs) {
     if (!evs.length) return;
     const feed = $('feed');
-    if (lastEventId === 0) feed.innerHTML = '';
+    if (lastEventId === 0 || (feed.firstElementChild && feed.firstElementChild.tagName === 'P')) feed.innerHTML = '';
     evs.slice().reverse().forEach(ev => {
       const [ic, label, bad] = EV[ev.type] || ['•', ev.type, false];
       const row = el('div', 'ev ' + ev.type + (firstLive ? '' : ' new'));
@@ -422,7 +424,17 @@
     lastEventId = Math.max(lastEventId, ...evs.map(e => e.id));
     while (feed.children.length > 300) feed.lastChild.remove();
   }
-  $('clearFeed').onclick = () => { $('feed').innerHTML = ''; };
+  $('clearFeed').onclick = async () => {
+    if (!lastEventId) return;
+    if (!confirm('مسح كل الإشعارات؟ مش هترجع تاني (الدرجات والملاحظات مش هتتأثر).')) return;
+    try {
+      await call('clearEvents', { upTo: lastEventId });
+      $('feed').innerHTML = '';
+      $('feed').appendChild(el('p', 'muted', 'مفيش إشعارات.'));
+      unseen = 0; badge();
+      toast('🗑 الإشعارات اتمسحت');
+    } catch (e) { fail(e); }
+  };
 
   /* ---------- متابعة مباشرة ---------- */
   async function refreshLive() {
@@ -824,7 +836,7 @@
   };
 
   /* ---------- الإعدادات ---------- */
-  const SKEYS = ['minutes', 'max_leaves', 'show_score', 'show_review', 'review_show_correct', 'grace_seconds'];
+  const SKEYS = ['minutes', 'max_leaves', 'shuffle', 'show_score', 'show_review', 'review_show_correct', 'grace_seconds'];
   function fillSettings() {
     SKEYS.forEach(k => { const f = $('s_' + k); if (f.type === 'checkbox') f.checked = !!cur[k]; else f.value = cur[k]; });
     $('settingsMsg').textContent = '';

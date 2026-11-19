@@ -1,15 +1,21 @@
-// لو الطالب عمل refresh: يكمّل بنفس الوقت، ولو كان سلّم يشوف نتيجته ومراجعته (للعرض بس)
-const { getSettings, readQuestions, findSession, examPayload, grade, resultFor, handler } = require('./_lib');
+// لو الطالب عمل refresh: يكمّل بنفس الوقت، ولو كان سلّم يشوف نتيجته (للعرض بس)
+const { getExam, readQuestions, findSession, examPayload, grade, resultFor, finalize, handler } = require('./_lib');
 
 module.exports = handler(async ({ token }) => {
   const sess = await findSession(token);
   if (!sess) return null;
-  const [s, qs] = await Promise.all([getSettings(), readQuestions()]);
+  const exam = await getExam(sess.exam_id);
+  if (!exam) return null;
+  const qs = await readQuestions(exam.id);
+
+  let res;
   if (sess.submitted_at) {
-    const res = resultFor(grade(qs, sess.answers || []), s);
-    res.submitted = true;
-    res.name = sess.name;
-    return res;
+    res = resultFor(grade(qs, sess.answers || []), exam);
+  } else if (exam.status !== 'published') {
+    // الأدمن قفل الامتحان وهو لسه بيمتحن: يتسلّم بآخر إجابات اتحفظت
+    res = await finalize(sess, exam, qs, sess.answers || [], 'اتسلّم تلقائي: الامتحان اتقفل');
+  } else {
+    return examPayload(sess, exam, qs);
   }
-  return examPayload(sess, s, qs);
+  return Object.assign(res, { submitted: true, name: sess.name, examId: exam.id, title: exam.title });
 });

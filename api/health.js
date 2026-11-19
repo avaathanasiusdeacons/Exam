@@ -46,21 +46,22 @@ module.exports = async (req, res) => {
 
   if (SUPABASE_URL && SUPABASE_KEY) {
     const tests = [
-      ['جدول الإعدادات (exam_settings)', 'exam_settings?select=id,max_leaves&limit=1', 'exam_settings'],
-      ['جدول الأسئلة (questions)', 'questions?select=id&limit=1', 'questions'],
-      ['جدول الطلبة (sessions)', 'sessions?select=token,name_key,deadline,last_seen&limit=1', 'sessions'],
-      ['جدول الإشعارات (events)', 'events?select=id&limit=1', 'events']
+      ['جدول الامتحانات (exams)', 'exams?select=id,status,max_leaves&limit=1', 'exams'],
+      ['جدول الأسئلة (questions)', 'questions?select=id,exam_id,type,choices,answer,image&limit=1', 'questions'],
+      ['جدول الصور (images)', 'images?select=id&limit=1', 'images'],
+      ['جدول الطلبة (sessions)', 'sessions?select=token,exam_id,name_key,deadline,last_seen&limit=1', 'sessions'],
+      ['جدول الإشعارات (events)', 'events?select=id,exam_id&limit=1', 'events']
     ];
     for (const [label, path, table] of tests) {
       const r = await probe(path);
       const hint = explain(r, table);
       add(label, !hint, hint);
-      if (r.status === 401 || r.status === 0) break;
+      if (r.status === 401 || r.status === 0) break;   // المشكلة في الاتصال، مفيش داعي نكمّل
     }
-    const q = await probe('questions?select=id&active=eq.true');
-    if (q.status === 200) {
-      let n = 0; try { n = JSON.parse(q.text).length; } catch (e) {}
-      add('فيه أسئلة في الامتحان (' + n + ')', n > 0, 'مفيش أسئلة: ضيف أسئلة من /admin ← الأسئلة.');
+    const ex = await probe('exams?select=id&status=eq.published');
+    if (ex.status === 200) {
+      let n = 0; try { n = JSON.parse(ex.text).length; } catch (e) {}
+      add('فيه امتحانات منشورة للطلبة (' + n + ')', n > 0, 'مفيش امتحان منشور: ادخل /admin ← الامتحانات واضغط "انشر".');
     }
   }
 

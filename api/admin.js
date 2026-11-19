@@ -1,9 +1,9 @@
-// لوحة أستاذ مينا (محمية بباسورد ADMIN_PASSWORD):
-// متابعة مباشرة + إشعارات، الأسئلة، الإعدادات، النتائج، وقت إضافي/إعادة فتح لطالب
+// لوحة الأدمن: الامتحانات، الأسئلة، الصور، المتابعة المباشرة، النتائج
+// لو ADMIN_PASSWORD متحط في Vercel اللوحة بتطلبه، ولو مش متحط بتفتح على طول
 const crypto = require('crypto');
-const { db, getSettings, readQuestions, findSession, endsAtOf, logEvent, finalize, handler, UserError, DEFAULTS } = require('./_lib');
+const { db, enc, toInt, getExam, readQuestions, normQuestion, findSession, grade, endsAtOf, logEvent, finalize,
+        handler, UserError } = require('./_lib');
 
-// لو ADMIN_PASSWORD مش متحط في Vercel: لوحة الأدمن مفتوحة من غير باسورد
 function checkPassword(pw) {
   const real = process.env.ADMIN_PASSWORD || '';
   if (!real) return;
@@ -12,133 +12,251 @@ function checkPassword(pw) {
   if (!crypto.timingSafeEqual(a, b)) throw new UserError('الباسورد غلط.');
 }
 
-const int = (v, min, max, def) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : def; };
 const str = (v, max) => (v == null ? '' : String(v)).slice(0, max);
-const enc = encodeURIComponent;
+const ID = v => toInt(v, 1, Number.MAX_SAFE_INTEGER, 0);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const imgId = v => (v && UUID_RE.test(String(v)) ? String(v) : null);
 
-const SESSION_FIELDS = 'token,name,started_at,submitted_at,deadline,last_seen,leaves,shots,score,total,duration_min,notes,answer_log,answers';
-
+async function examOrFail(id) {
+  const e = await getExam(id);
+  if (!e) throw new UserError('الامتحان ده مش موجود.');
+  return e;
+}
 async function sessionOrFail(token) {
-  const sess = await findSession(token);
-  if (!sess) throw new UserError('الطالب ده مش موجود (يمكن اتمسح).');
-  return sess;
+  const s = await findSession(token);
+  if (!s) throw new UserError('الطالب ده مش موجود (يمكن اتمسح).');
+  return s;
+}
+
+const EXAM_FIELDS = ['title', 'status', 'minutes', 'grace_seconds', 'max_leaves', 'show_score', 'show_review', 'review_show_correct'];
+function cleanExam(x) {
+  const out = {};
+  if ('title' in x) out.title = str(x.title, 150).trim() || 'امتحان جديد';
+  if ('status' in x) out.status = ['draft', 'published', 'closed'].includes(x.status) ? x.status : 'draft';
+  if ('minutes' in x) out.minutes = toInt(x.minutes, 1, 600, 15);
+  if ('grace_seconds' in x) out.grace_seconds = toInt(x.grace_seconds, 0, 600, 20);
+  if ('max_leaves' in x) out.max_leaves = toInt(x.max_leaves, 0, 100, 3);
+  ['show_score', 'show_review', 'review_show_correct'].forEach(k => { if (k in x) out[k] = !!x[k]; });
+  return out;
+}
+
+function cleanQuestion(q) {
+  const type = ['single', 'multi', 'text'].includes(q.type) ? q.type : 'single';
+  const text = str(q.text, 4000).trim();
+  const image = imgId(q.image);
+  if (!text && !image) throw new UserError('اكتب نص السؤال أو حط صورة.');
+  const body = { text, image, type, points: Math.max(0, Math.min(1000, Number(q.points) || 0)), active: q.active !== false };
+  if (type === 'text') {
+    const acc = (Array.isArray(q.answer) ? q.answer : [q.answer]).map(a => str(a, 1000).trim()).filter(Boolean).slice(0, 20);
+    if (!acc.length) throw new UserError('اكتب الإجابة الصحيحة للسؤال المكتوب.');
+    body.choices = [];
+    body.answer = acc;
+  } else {
+    const raw = (Array.isArray(q.choices) ? q.choices : []).slice(0, 10).map(c => ({ text: str(c && c.text, 1000).trim(), image: imgId(c && c.image) }));
+    const marked = new Set((Array.isArray(q.answer) ? q.answer : []).map(n => parseInt(n, 10)));
+    const kept = [], answer = [];
+    raw.forEach((c, i) => {
+      if (!c.text && !c.image) return;
+      kept.push(c.image ? c : { text: c.text });
+      if (marked.has(i + 1)) answer.push(kept.length);
+    });
+    if (kept.length < 2) throw new UserError('السؤال محتاج اختيارين على الأقل.');
+    if (!answer.length) throw new UserError('حدد الإجابة الصحيحة.');
+    if (type === 'single' && answer.length > 1) throw new UserError('السؤال "اختيار واحد" ليه إجابة صحيحة واحدة بس. لو فيه أكتر من إجابة صح اختار نوع "أكتر من إجابة".');
+    body.choices = kept;
+    body.answer = answer;
+  }
+  return body;
 }
 
 const actions = {
-  // كل 4 ثواني: الإشعارات الجديدة + اللي بيمتحنوا دلوقتي
+  /* ---------- المتابعة المباشرة (كل 4 ثواني) ---------- */
   async live({ since }) {
-    const sinceId = int(since, 0, Number.MAX_SAFE_INTEGER, 0);
-    let [s, events, active, doneCount] = await Promise.all([
-      getSettings(),
+    const sinceId = toInt(since, 0, Number.MAX_SAFE_INTEGER, 0);
+    const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+    let [exams, events, active, doneToday] = await Promise.all([
+      db('exams?select=id,title,status,minutes,grace_seconds,max_leaves,show_score,show_review,review_show_correct'),
       db('events?id=gt.' + sinceId + '&select=*&order=id.desc&limit=100'),
-      db('sessions?submitted_at=is.null&select=' + SESSION_FIELDS + '&order=started_at.desc&limit=300'),
-      db('sessions?submitted_at=not.is.null&select=token')
+      db('sessions?submitted_at=is.null&select=token,name,exam_id,started_at,deadline,last_seen,leaves,shots,answers&order=started_at.desc&limit=500'),
+      db('sessions?submitted_at=gte.' + enc(today.toISOString()) + '&select=token')
     ]);
+    const byId = Object.fromEntries(exams.map(e => [e.id, e]));
     const now = Date.now();
-    // اللي وقته خلص من أكتر من دقيقة وصفحته مقفولة: يتسلّم بآخر إجابات اتحفظت
-    const stale = active.filter(x => endsAtOf(x, s) + s.grace_seconds * 1000 + 60000 < now);
-    if (stale.length) {
-      const qs = await readQuestions();
-      for (const x of stale) {
-        await finalize(x, s, qs, Array.isArray(x.answers) ? x.answers : [], 'اتسلّم تلقائي بعد الوقت (الصفحة كانت مقفولة)');
-      }
-      active = active.filter(x => !stale.includes(x));
+    // اللي وقته خلص من أكتر من دقيقة وصفحته مقفولة، أو امتحانه اتقفل: يتسلّم بآخر إجابات اتحفظت
+    const stale = active.filter(x => {
+      const e = byId[x.exam_id];
+      return !e || e.status !== 'published' || endsAtOf(x, e) + e.grace_seconds * 1000 + 60000 < now;
+    });
+    for (const x of stale) {
+      const e = byId[x.exam_id];
+      if (!e) continue;
+      const qs = await readQuestions(e.id);
+      await finalize(x, e, qs, Array.isArray(x.answers) ? x.answers : [],
+        e.status !== 'published' ? 'اتسلّم تلقائي: الامتحان اتقفل' : 'اتسلّم تلقائي بعد الوقت (الصفحة كانت مقفولة)');
     }
+    active = active.filter(x => !stale.includes(x));
     return {
-      settings: s,
       serverNow: now,
-      events,
-      active: active.map(x => Object.assign(x, { endsAt: endsAtOf(x, s), answered: (x.answers || []).filter(a => String(a || '').trim()).length, answers: undefined })),
-      doneCount: doneCount.length + stale.length
+      exams: exams.map(e => ({ id: e.id, title: e.title, status: e.status })),
+      events: events.map(ev => Object.assign(ev, { exam_title: byId[ev.exam_id] ? byId[ev.exam_id].title : '' })),
+      active: active.map(x => ({
+        token: x.token, name: x.name, exam_id: x.exam_id, exam_title: byId[x.exam_id].title,
+        endsAt: endsAtOf(x, byId[x.exam_id]), last_seen: x.last_seen, leaves: x.leaves, shots: x.shots,
+        answered: (x.answers || []).filter(a => String(a || '').trim()).length
+      })),
+      doneToday: doneToday.length + stale.length
     };
   },
 
-  async results() {
-    const rows = await db('sessions?submitted_at=not.is.null&select=' + SESSION_FIELDS + '&order=submitted_at.desc&limit=3000');
-    rows.forEach(r => { delete r.answers; });
-    return { results: rows };
-  },
-
-  async questions() {
-    return { questions: await db('questions?select=*&order=position.asc,id.asc') };
-  },
-
-  async saveSettings({ settings }) {
-    const x = settings || {};
-    const body = {
-      title: str(x.title, 120).trim() || DEFAULTS.title,
-      minutes: int(x.minutes, 1, 600, 15),
-      grace_seconds: int(x.grace_seconds, 0, 600, 20),
-      max_leaves: int(x.max_leaves, 0, 100, 3),
-      is_open: !!x.is_open,
-      show_score: !!x.show_score,
-      show_review: !!x.show_review,
-      review_show_correct: !!x.review_show_correct
+  /* ---------- الامتحانات ---------- */
+  async exams() {
+    const [exams, qs, ss] = await Promise.all([
+      db('exams?select=*&order=position.asc,id.desc'),
+      db('questions?select=exam_id,points,active'),
+      db('sessions?select=exam_id,submitted_at')
+    ]);
+    return {
+      exams: exams.map(e => {
+        const q = qs.filter(x => x.exam_id === e.id && x.active);
+        const s = ss.filter(x => x.exam_id === e.id);
+        return Object.assign(e, {
+          questionCount: q.length,
+          totalPoints: q.reduce((a, x) => a + Number(x.points || 0), 0),
+          submittedCount: s.filter(x => x.submitted_at).length,
+          activeCount: s.filter(x => !x.submitted_at).length
+        });
+      })
     };
-    await db('exam_settings?id=eq.1', { method: 'PATCH', body });
-    return { settings: await getSettings() };
   },
 
-  async setOpen({ open }) {
-    await db('exam_settings?id=eq.1', { method: 'PATCH', body: { is_open: !!open } });
-    return { settings: await getSettings() };
+  async saveExam({ exam }) {
+    const x = exam || {};
+    const body = cleanExam(x);
+    let rows;
+    if (x.id) {
+      await examOrFail(x.id);
+      rows = await db('exams?id=eq.' + ID(x.id), { method: 'PATCH', body, prefer: 'return=representation' });
+    } else {
+      rows = await db('exams', { method: 'POST', body: Object.assign({ status: 'draft' }, body), prefer: 'return=representation' });
+    }
+    return { exam: rows[0] };
+  },
+
+  async setStatus({ id, status }) {
+    await examOrFail(id);
+    const rows = await db('exams?id=eq.' + ID(id), { method: 'PATCH', body: cleanExam({ status }), prefer: 'return=representation' });
+    return { exam: rows[0] };
+  },
+
+  async duplicateExam({ id }) {
+    const e = await examOrFail(id);
+    const copy = {};
+    EXAM_FIELDS.forEach(k => { copy[k] = e[k]; });
+    copy.title = e.title + ' (نسخة)';
+    copy.status = 'draft';
+    const [ne] = await db('exams', { method: 'POST', body: copy, prefer: 'return=representation' });
+    const qs = await db('questions?exam_id=eq.' + e.id + '&select=*&order=position.asc,id.asc');
+    if (qs.length) {
+      await db('questions', { method: 'POST', body: qs.map((q, i) => ({
+        exam_id: ne.id, position: i + 1, text: q.text, image: q.image, type: q.type, choices: q.choices, answer: q.answer,
+        points: q.points, active: q.active
+      })) });
+    }
+    return { exam: ne };
+  },
+
+  async deleteExam({ id }) {
+    const e = await examOrFail(id);
+    await db('exams?id=eq.' + e.id, { method: 'DELETE' });   // الأسئلة والنتائج بتتمسح معاه
+    return { ok: true };
+  },
+
+  /* ---------- الأسئلة ---------- */
+  async questions({ examId }) {
+    const e = await examOrFail(examId);
+    const rows = await db('questions?exam_id=eq.' + e.id + '&select=*&order=position.asc,id.asc');
+    return { exam: e, questions: rows.map(r => Object.assign(normQuestion(r), { active: r.active })) };
   },
 
   async saveQuestion({ question }) {
     const q = question || {};
-    const text = str(q.text, 4000).trim();
-    if (!text) throw new UserError('اكتب نص السؤال.');
-    let choices = [q.choice1, q.choice2, q.choice3, q.choice4].map(c => str(c, 1000).trim());
-    let correct = str(q.correct, 1000).trim();
-    if (choices.some(Boolean)) {
-      // نشيل الاختيارات الفاضية من النص ونظبط رقم الإجابة الصحيحة
-      const idx = parseInt(correct, 10);
-      const kept = [];
-      let newCorrect = 0;
-      choices.forEach((c, i) => { if (c) { kept.push(c); if (i + 1 === idx) newCorrect = kept.length; } });
-      if (kept.length < 2) throw new UserError('السؤال الاختياري محتاج اختيارين على الأقل.');
-      if (!newCorrect) throw new UserError('حدد الإجابة الصحيحة.');
-      choices = kept.concat(['', '', '', '']).slice(0, 4);
-      correct = String(newCorrect);
-    } else if (!correct) {
-      throw new UserError('اكتب الإجابة الصحيحة للسؤال المقالي.');
-    }
-    const body = {
-      text,
-      choice1: choices[0] || null, choice2: choices[1] || null, choice3: choices[2] || null, choice4: choices[3] || null,
-      correct,
-      points: Math.max(0, Math.min(1000, Number(q.points) || 1)),
-      active: q.active !== false
-    };
+    const body = cleanQuestion(q);
     let saved;
     if (q.id) {
-      saved = await db('questions?id=eq.' + int(q.id, 1, Number.MAX_SAFE_INTEGER, 0), { method: 'PATCH', body, prefer: 'return=representation' });
+      saved = await db('questions?id=eq.' + ID(q.id), { method: 'PATCH', body, prefer: 'return=representation' });
     } else {
-      const last = await db('questions?select=position&order=position.desc&limit=1');
+      const e = await examOrFail(q.exam_id);
+      const last = await db('questions?exam_id=eq.' + e.id + '&select=position&order=position.desc&limit=1');
+      body.exam_id = e.id;
       body.position = (last[0] ? last[0].position : 0) + 1;
       saved = await db('questions', { method: 'POST', body, prefer: 'return=representation' });
     }
-    return { question: saved[0] };
+    return { question: Object.assign(normQuestion(saved[0]), { active: saved[0].active }) };
   },
 
   async deleteQuestion({ id }) {
-    await db('questions?id=eq.' + int(id, 1, Number.MAX_SAFE_INTEGER, 0), { method: 'DELETE' });
+    await db('questions?id=eq.' + ID(id), { method: 'DELETE' });
     return { ok: true };
   },
 
   async reorderQuestions({ ids }) {
-    const list = (Array.isArray(ids) ? ids : []).map(x => int(x, 1, Number.MAX_SAFE_INTEGER, 0)).filter(Boolean).slice(0, 500);
+    const list = (Array.isArray(ids) ? ids : []).map(ID).filter(Boolean).slice(0, 500);
     for (let i = 0; i < list.length; i++) {
       await db('questions?id=eq.' + list[i], { method: 'PATCH', body: { position: i + 1 } });
     }
     return { ok: true };
   },
 
-  // وقت إضافي: لو لسه بيمتحن بيتزوّد على وقته، ولو كان سلّم بيتفتحله الامتحان تاني بإجاباته القديمة
+  // نسخ أسئلة مختارة من امتحان قديم للامتحان الحالي
+  async copyQuestions({ ids, toExamId }) {
+    const e = await examOrFail(toExamId);
+    const list = (Array.isArray(ids) ? ids : []).map(ID).filter(Boolean).slice(0, 500);
+    if (!list.length) throw new UserError('اختار سؤال واحد على الأقل.');
+    const src = await db('questions?id=in.(' + list.join(',') + ')&select=*');
+    const order = new Map(list.map((id, i) => [id, i]));
+    src.sort((a, b) => order.get(a.id) - order.get(b.id));
+    const last = await db('questions?exam_id=eq.' + e.id + '&select=position&order=position.desc&limit=1');
+    let pos = last[0] ? last[0].position : 0;
+    await db('questions', { method: 'POST', body: src.map(q => ({
+      exam_id: e.id, position: ++pos, text: q.text, image: q.image, type: q.type, choices: q.choices, answer: q.answer,
+      points: q.points, active: true
+    })) });
+    return { added: src.length };
+  },
+
+  // رفع صورة (بتتصغّر في المتصفح الأول)
+  async uploadImage({ dataUrl }) {
+    const m = /^data:(image\/(?:jpeg|png|gif|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ''));
+    if (!m) throw new UserError('نوع الصورة مش مدعوم. استخدم JPG أو PNG.');
+    if (m[2].length > 3.5 * 1024 * 1024) throw new UserError('الصورة كبيرة جدًا.');
+    const rows = await db('images', { method: 'POST', body: { mime: m[1], data: m[2] }, prefer: 'return=representation' });
+    return { id: rows[0].id };
+  },
+
+  /* ---------- النتائج ---------- */
+  async results({ examId }) {
+    const e = await examOrFail(examId);
+    const [rows, qs] = await Promise.all([
+      db('sessions?exam_id=eq.' + e.id + '&submitted_at=not.is.null&select=token,name,started_at,submitted_at,deadline,leaves,shots,score,total,duration_min,notes,answer_log,answers&order=submitted_at.desc&limit=5000'),
+      readQuestions(e.id)
+    ]);
+    return {
+      exam: e,
+      questionCount: qs.length,
+      results: rows.map(r => {
+        const g = grade(qs, r.answers || []);
+        delete r.answers;
+        return Object.assign(r, { marks: g.marks });
+      })
+    };
+  },
+
+  // وقت إضافي: لو لسه بيمتحن بيتزوّد على وقته، ولو كان سلّم بيتفتحله تاني بإجاباته القديمة
   async addTime({ token, minutes }) {
     const sess = await sessionOrFail(token);
-    const s = await getSettings();
-    const add = int(minutes, 1, 180, 5) * 60000;
+    const e = await examOrFail(sess.exam_id);
+    if (e.status !== 'published') throw new UserError('الامتحان ده مش منشور. انشره الأول عشان الطالب يقدر يكمّل.');
+    const add = toInt(minutes, 1, 180, 5) * 60000;
     const now = Date.now();
     if (sess.submitted_at) {
       await db('sessions?token=eq.' + enc(sess.token), {
@@ -148,14 +266,13 @@ const actions = {
       });
       await logEvent(sess, 'reopen', (add / 60000) + ' دقيقة' + (sess.leaves ? ' (كان خرج ' + sess.leaves + ' مرة)' : ''));
     } else {
-      const base = Math.max(endsAtOf(sess, s), now);
+      const base = Math.max(endsAtOf(sess, e), now);
       await db('sessions?token=eq.' + enc(sess.token), { method: 'PATCH', body: { deadline: new Date(base + add).toISOString() } });
       await logEvent(sess, 'extra', 'زيادة ' + (add / 60000) + ' دقيقة');
     }
     return { ok: true };
   },
 
-  // إنهاء امتحان طالب دلوقتي (أو الكل): الوقت بيخلص وصفحته بتسلّم لوحدها
   async endNow({ token }) {
     const sess = await sessionOrFail(token);
     await db('sessions?token=eq.' + enc(sess.token) + '&submitted_at=is.null', { method: 'PATCH', body: { deadline: new Date().toISOString() } });
@@ -163,12 +280,12 @@ const actions = {
     return { ok: true };
   },
 
-  async endAll() {
-    await db('sessions?submitted_at=is.null', { method: 'PATCH', body: { deadline: new Date().toISOString() } });
+  async endAll({ examId }) {
+    const filter = examId ? '&exam_id=eq.' + ID(examId) : '';
+    await db('sessions?submitted_at=is.null' + filter, { method: 'PATCH', body: { deadline: new Date().toISOString() } });
     return { ok: true };
   },
 
-  // مسح طالب: يقدر يدخل الامتحان تاني بنفس الاسم
   async deleteSession({ token }) {
     const sess = await sessionOrFail(token);
     await db('sessions?token=eq.' + enc(sess.token), { method: 'DELETE' });

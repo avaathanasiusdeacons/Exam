@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <link rel="icon" href="logo.webp">
-<title>امتحان الطقس والقبطي</title>
+<title>امتحانات — مدرسة البابا أثناسيوس الرسولي للألحان</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -100,15 +100,32 @@
   .toast { position:fixed; top:70px; left:50%; transform:translateX(-50%); background:var(--maroon); color:var(--gold-2);
            padding:12px 22px; border-radius:30px; z-index:60; font-weight:700; box-shadow:0 6px 20px rgba(0,0,0,.25); animation:tin .3s; }
   @keyframes tin { from { opacity:0; transform:translate(-50%,-10px); } }
+  /* قايمة الامتحانات */
+  .hello { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .exam-item { display:flex; align-items:center; gap:12px; justify-content:space-between; padding:14px; border:1.5px solid var(--line);
+               border-radius:12px; background:#fff; margin:10px 0; }
+  .exam-item h3 { margin:0; font-size:18px; color:var(--maroon); }
+  .exam-item .meta { color:var(--muted); font-size:14px; }
+  .exam-item button { padding:10px 20px; font-size:16px; }
+  button.ghost { background:#f3e7c9; color:var(--maroon); box-shadow:0 3px 0 #d9c79a; }
+  button.sm { padding:7px 14px; font-size:14px; }
+  .tag-done { background:#e8f3e8; color:var(--ok); border-radius:20px; padding:2px 10px; font-size:13px; font-weight:700; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center; }
+  /* صور الأسئلة والاختيارات */
+  .q-img { display:block; max-width:100%; max-height:340px; margin:6px auto 12px; border-radius:10px; border:1px solid var(--line); background:#fff; }
+  .c-img { display:block; max-width:min(260px, 100%); max-height:180px; border-radius:8px; margin-top:4px; }
+  label.choice .c-body { display:flex; flex-direction:column; gap:4px; }
+  .q-hint { font-size:13px; color:var(--gold-dark); background:#f8efd8; display:inline-block; border-radius:20px; padding:2px 12px; margin-bottom:6px; }
+  label.choice input[type=checkbox] { border-radius:4px; }
   @media print { body * { display:none !important; } body::after { content:"الطباعة غير مسموحة"; display:block; padding:40px; font-size:24px; } }
 </style>
 </head>
 <body oncontextmenu="return false">
-<div id="timer" class="timer hidden">15:00</div>
+<div id="timer" class="timer hidden">00:00</div>
 <div id="watermark" class="hidden"></div>
 <div id="shield" class="hidden">
   <h3>⚠️ الامتحان متوقف مؤقتًا</h3>
-  <p id="shieldMsg">خرجت من صفحة الامتحان. الوقت لسه شغال، وخروجك اتسجّل عند أستاذ مينا.</p>
+  <p id="shieldMsg">خرجت من صفحة الامتحان. الوقت لسه شغال، وخروجك اتسجّل.</p>
   <button id="shieldBtn">رجوع للامتحان</button>
 </div>
 
@@ -118,23 +135,34 @@
   <header class="brand">
     <img src="logo.webp" alt="شعار مدرسة البابا أثناسيوس الرسولي للألحان">
     <div class="school">مدرسة البابا أثناسيوس الرسولي للألحان</div>
-    <h1 id="titleStart">امتحان الطقس والقبطي</h1>
+    <h1 id="brandTitle">الامتحانات</h1>
     <div class="orn">✥ ✥ ✥</div>
   </header>
 
-  <!-- شاشة الاسم -->
-  <section id="startScreen" class="card head">
-    <div class="info"><span class="pill">⏱ <b id="minutesLbl">15</b> دقيقة</span><span class="pill">بدون تسجيل دخول</span></div>
+  <!-- 1) الاسم -->
+  <section id="nameScreen" class="card head hidden">
+    <h2 class="center">أهلًا بيك 👋</h2>
+    <p class="muted center">اكتب اسمك بالكامل عشان تشوف الامتحانات المتاحة.</p>
     <input id="nameInput" type="text" placeholder="اكتب اسمك بالكامل" autocomplete="name" maxlength="100">
-    <div class="rules">
-      • العدّاد بيبدأ أول ما تضغط <b>ابدأ الامتحان</b>، ولما الوقت يخلص الامتحان بيتسلّم لوحده.<br>
-      • <b>ممنوع</b> الخروج من الصفحة أو تصويرها: أستاذ مينا بيوصله إشعار فورًا، ولو كررت الخروج الامتحان بيتسلّم لوحده.
-    </div>
-    <div id="startErr" class="err"></div>
-    <button id="startBtn">ابدأ الامتحان</button>
+    <div id="nameErr" class="err"></div>
+    <button id="nameBtn" style="width:100%">دخول</button>
   </section>
 
-  <!-- الامتحان -->
+  <!-- 2) الامتحانات المتاحة -->
+  <section id="listScreen" class="card head hidden">
+    <div class="hello">
+      <div><span class="muted">أهلًا</span> <b id="helloName"></b></div>
+      <button id="logoutBtn" class="ghost sm">🚪 خروج</button>
+    </div>
+    <div id="examList"></div>
+    <div id="listErr" class="err"></div>
+    <div class="rules">
+      • العدّاد بيبدأ أول ما تضغط <b>ابدأ</b>، ولما الوقت يخلص الامتحان بيتسلّم لوحده.<br>
+      • <b>ممنوع</b> الخروج من الصفحة أو تصويرها: المدرس بيوصله إشعار فورًا، ولو كررت الخروج الامتحان بيتسلّم لوحده.
+    </div>
+  </section>
+
+  <!-- 3) الامتحان -->
   <section id="examScreen" class="hidden">
     <div class="card head center" style="padding:14px">
       <span class="muted">الطالب:</span> <b id="studentName"></b>
@@ -142,11 +170,15 @@
     <form id="examForm"></form>
   </section>
 
-  <!-- بعد التسليم -->
+  <!-- 4) بعد التسليم -->
   <section id="doneScreen" class="card head center hidden">
     <h2>تم تسليم الامتحان ✔</h2>
     <p id="doneReason" class="muted"></p>
     <div id="scoreBox" class="hidden"><div class="muted">درجتك</div><div class="big" id="scoreVal"></div></div>
+    <div class="row" style="margin-top:12px">
+      <button id="backBtn" class="ghost">⬅ الامتحانات</button>
+      <button id="logoutBtn2" class="ghost">🚪 خروج</button>
+    </div>
   </section>
   <section id="reviewScreen" class="hidden">
     <div class="card"><b>مراجعة إجاباتك</b> <span class="muted">(للعرض فقط، لا يمكن التعديل)</span></div>
@@ -162,18 +194,22 @@
 <script>
 (function () {
   const $ = id => document.getElementById(id);
-  const LS_TOKEN = 'exam_token', LS_ANS = 'exam_answers_';
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const store = {
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
     del(k) { try { localStorage.removeItem(k); } catch (e) {} }
   };
+  // على الجهاز: اسم الطالب + الامتحانات اللي دخلها (examId → {token, done})
+  const K_NAME = 'st_name', K_TOKENS = 'st_tokens', K_ACTIVE = 'st_active', K_ANS = 'st_ans_';
+  const getTokens = () => { try { return JSON.parse(store.get(K_TOKENS)) || {}; } catch (e) { return {}; } };
+  const setToken = (examId, data) => { const t = getTokens(); t[examId] = Object.assign(t[examId] || {}, data); store.set(K_TOKENS, JSON.stringify(t)); };
 
   /* ---------- الاتصال بالسيرفر (أو وضع المعاينة) ---------- */
-  // على Vercel الصفحة بتكلّم /api/... ، ولو الملف مفتوح من الجهاز مباشرة بتشتغل في وضع المعاينة
   const isLive = location.protocol === 'http:' || location.protocol === 'https:';
   const ROUTES = {
-    startExam: name => ['start', { name }],
+    listExams: () => ['exams', {}],
+    startExam: (examId, name) => ['start', { examId, name }],
     resumeExam: token => ['resume', { token }],
     submitExam: (token, answers) => ['submit', { token, answers }],
     ping: (token, answers, event) => ['ping', { token, answers, event }]
@@ -191,43 +227,36 @@
     if (!r.ok) throw new Error((data && data.error) || 'حصل خطأ، حاول تاني.');
     return data;
   }
+  const DEMO_Q = [
+    { text: 'الرجل معناها [ath].......Rwmi[/ath]', type: 'single', choices: [{ text: '[ath]`V[/ath]' }, { text: '[ath]`Q[/ath]' }, { text: '[ath]`P[/ath]' }] },
+    { text: 'اختار كل أدوات التعريف المفرد المذكر', type: 'multi', choices: [{ text: '[ath]`P[/ath]' }, { text: '[ath]`T[/ath]' }, { text: '[ath]`V[/ath]' }, { text: '[ath]Ni[/ath]' }] },
+    { text: 'اكتب معنى كلمة [ath]`eiwt[/ath]', type: 'text', choices: [] }
+  ];
+  const DEMO_KEY = [[1], [1, 3], ['الآب']];
   const demo = {
-    startExam(name) {
-      if (!name || name.trim().length < 3) throw new Error('من فضلك اكتب اسمك بالكامل.');
+    listExams() { return { exams: [{ id: 1, title: 'امتحان الطقس والقبطي (معاينة)', minutes: 15, count: DEMO_Q.length }] }; },
+    startExam(examId, name) {
       const now = Date.now();
-      return { token: 'demo', name: name.trim(), title: 'امتحان الطقس والقبطي', minutes: 15, endsAt: now + 15 * 60000, serverNow: now,
-        questions: [
-          {"text": "الرجل معناها [ath].......Rwmi[/ath]", "choices": ["[ath]`V[/ath]", "[ath]`Q[/ath]", "[ath]`P[/ath]"]},
-          {"text": "الأخت معناها [ath].......Cwni[/ath]", "choices": ["[ath]:[/ath]", "[ath]`T[/ath]", "كلاهما"]},
-          {"text": "الله معناها [ath].......nou;[/ath]", "choices": ["[ath]`V[/ath]", "[ath]`Q[/ath]", "[ath]`P[/ath]"]},
-          {"text": "البحر معناها [ath].......iom[/ath]", "choices": ["[ath]`Q[/ath]", "[ath]`V[/ath]", "[ath]:[/ath]"]},
-          {"text": "الملك معناها [ath].......ouro[/ath]", "choices": ["[ath]`P[/ath]", "[ath]`V[/ath]", "[ath]`T[/ath]"]},
-          {"text": "الأيقونة معناها [ath].......[/ath][shen]h[/shen][ath]ikwn[/ath]", "choices": ["[ath]:[/ath]", "[ath]Pi[/ath]", "[ath]`V[/ath]"]},
-          {"text": "الأرض معناها [ath].......Ka[/ath][shen]h[/shen][ath]i[/ath]", "choices": ["[ath]`P[/ath]", "[ath]`V[/ath]", "[ath]`T[/ath]"]},
-          {"text": "النساء معناها [ath].......[/ath][shen]h[/shen][ath]iomi[/ath]", "choices": ["[ath]:[/ath]", "[ath]Pi[/ath]", "[ath]Ni[/ath]"]},
-          {"text": "الرجال معناها [ath].......Rwmi[/ath]", "choices": ["[ath]Ni[/ath]", "[ath]`V[/ath]", "[ath]`T[/ath]"]},
-          {"text": "الأم معناها [ath].......mau[/ath]", "choices": ["[ath]`V[/ath]", "[ath]`P[/ath]", "[ath]`Q[/ath]"]}
-        ] };
+      return { token: 'demo', examId: 1, name, title: 'امتحان الطقس والقبطي (معاينة)', minutes: 15, endsAt: now + 15 * 60000, serverNow: now, maxLeaves: 3, leaves: 0, answers: [], questions: DEMO_Q };
     },
     resumeExam() { return null; },
     ping() { return exam ? { endsAt: exam.endsAt, serverNow: Date.now() } : {}; },
     submitExam(token, answers) {
-      const key = [1, 3, 1, 2, 1, 1, 1, 3, 1, 3];
-      const qs = demo.startExam('معاينة').questions;
       let score = 0;
-      const review = qs.map((q, i) => { const p = Number(answers[i]) || 0; const ok = p === key[i]; if (ok) score++;
-        return { text: q.text, choices: q.choices, picked: p, correct: key[i], ok, points: 1 }; });
-      return { showScore: true, score, total: qs.length, review };
+      const review = DEMO_Q.map((q, i) => {
+        if (q.type === 'text') { const ok = String(answers[i] || '').trim() === DEMO_KEY[i][0]; if (ok) score++; return { text: q.text, type: q.type, choices: [], given: answers[i], correctText: DEMO_KEY[i], ok, points: 1 }; }
+        const picks = String(answers[i] || '').split(',').filter(Boolean).map(Number);
+        const ok = picks.join() === DEMO_KEY[i].join(); if (ok) score++;
+        return { text: q.text, type: q.type, choices: q.choices, picked: picks, correct: DEMO_KEY[i], ok, points: 1 };
+      });
+      return { showScore: true, score, total: DEMO_Q.length, review, name: exam && exam.name, examId: 1 };
     }
   };
-
 
   /* ---------- الحماية من التصوير والخروج من الصفحة ---------- */
   const guard = (function () {
     let active = false, review = false, leaves = 0, maxLeaves = 0, wmName = '', away = false;
-    let report = () => {};   // بيبعت الحدث للسيرفر ← إشعار عند أستاذ مينا
-
-    // علامة مائية متكررة باسم الطالب: أي صورة تتاخد يبان مين صاحبها
+    let report = () => {};
     function watermark(name) {
       if (!name) return;
       wmName = name;
@@ -240,52 +269,38 @@
       wm.style.backgroundImage = 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")';
       wm.classList.remove('hidden');
     }
-
     function shieldOn(msg) {
       if (!active && !review) return;
       $('shieldMsg').textContent = msg;
       $('shield').classList.remove('hidden');
       document.body.classList.add('shielded');
     }
-    function shieldOff() {
-      $('shield').classList.add('hidden');
-      document.body.classList.remove('shielded');
-    }
+    function shieldOff() { $('shield').classList.add('hidden'); document.body.classList.remove('shielded'); }
     $('shieldBtn').addEventListener('click', shieldOff);
-
     function leftMsg() {
-      let m = 'خرجت من صفحة الامتحان (' + leaves + ' مرة)، وأستاذ مينا وصله إشعار. الوقت لسه شغال.';
-      if (maxLeaves > 0) {
-        const rest = maxLeaves - leaves;
-        m += rest > 0 ? ' ⚠️ لو خرجت ' + rest + ' مرة كمان الامتحان هيتسلّم لوحده.' : '';
-      }
+      let m = 'خرجت من صفحة الامتحان (' + leaves + ' مرة)، والمدرس وصله إشعار. الوقت لسه شغال.';
+      if (maxLeaves > 0) { const rest = maxLeaves - leaves; if (rest > 0) m += ' ⚠️ لو خرجت ' + rest + ' مرة كمان الامتحان هيتسلّم لوحده.'; }
       return m;
     }
     function left() {
-      if (away || !$('shield').classList.contains('hidden')) return;   // نفس الخروجة متتحسبش مرتين (blur + visibilitychange)
+      if (away || !$('shield').classList.contains('hidden')) return;
       away = true;
       if (active) { leaves++; report('leave'); }
       shieldOn(active ? leftMsg() : 'رجّع للصفحة عشان تكمّل مراجعة إجاباتك.');
     }
-    function back() {
-      if (!away) return;
-      away = false;
-      if (active) report('back');
-    }
+    function back() { if (!away) return; away = false; if (active) report('back'); }
     document.addEventListener('visibilitychange', () => { if (document.hidden) left(); else back(); });
     window.addEventListener('blur', () => { if (!document.hidden) left(); });
     window.addEventListener('focus', back);
-
     let lastShot = 0;
     function shot() {
       const now = Date.now();
-      if (now - lastShot < 1500) return;   // نفس الضغطة (keydown + keyup) تتحسب مرة واحدة
+      if (now - lastShot < 1500) return;
       lastShot = now;
       if (active) report('shot');
-      shieldOn('تصوير الامتحان غير مسموح، وأستاذ مينا وصله إشعار بالمحاولة.');
+      shieldOn('تصوير الامتحان غير مسموح، والمدرس وصله إشعار بالمحاولة.');
       try { navigator.clipboard && navigator.clipboard.writeText(' '); } catch (e) {}
     }
-    // زراير التصوير والنسخ والطباعة وأدوات المطوّر
     document.addEventListener('keydown', e => {
       const k = (e.key || '').toLowerCase(), ctrl = e.ctrlKey || e.metaKey;
       if (k === 'printscreen') { e.preventDefault(); shot(); return; }
@@ -300,35 +315,141 @@
       document.addEventListener(ev, e => { if (!(e.target && e.target.tagName === 'INPUT')) e.preventDefault(); }));
     document.addEventListener('contextmenu', e => e.preventDefault());
     window.addEventListener('beforeprint', () => shieldOn('الطباعة غير مسموحة.'));
-
     return {
       start(name, opts) { active = true; review = false; away = false; leaves = opts.leaves || 0; maxLeaves = opts.maxLeaves || 0; watermark(name); },
       reviewMode(name) { active = false; review = true; shieldOff(); watermark(name || wmName); },
+      off() { active = false; review = false; shieldOff(); $('watermark').classList.add('hidden'); },
       sync(l, max) { if (typeof l === 'number') leaves = Math.max(leaves, l); if (typeof max === 'number') maxLeaves = max; },
       onReport(fn) { report = fn; },
       stop() { active = false; }
     };
   })();
 
-  /* ---------- الحالة ---------- */
+  /* ---------- الشاشات ---------- */
+  const SCREENS = ['nameScreen', 'listScreen', 'examScreen', 'doneScreen'];
+  function show(screen) {
+    SCREENS.forEach(id => $(id).classList.toggle('hidden', id !== screen));
+    if (screen !== 'doneScreen') $('reviewScreen').classList.add('hidden');
+    $('timer').classList.toggle('hidden', screen !== 'examScreen');
+    $('submitBar').classList.toggle('hidden', screen !== 'examScreen');
+    document.body.classList.toggle('in-exam', screen === 'examScreen' || screen === 'doneScreen');
+    if (screen === 'nameScreen' || screen === 'listScreen') { $('brandTitle').textContent = 'الامتحانات'; document.title = 'الامتحانات'; }
+    window.scrollTo(0, 0);
+  }
+  function toast(msg) {
+    const t = el('div', 'toast', msg);
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 5000);
+  }
+
+  // [ath]..[/ath] / [newath] / [cs] / [shen] → كلام بالخط القبطي
+  const FONTS = { ath: 1, newath: 1, cs: 1, shen: 1 };
+  function richText(target, str) {
+    const re = /\[(ath|newath|cs|shen)\]([\s\S]*?)\[\/\1\]/gi;
+    let last = 0, m, group = null;
+    str = String(str || '');
+    while ((m = re.exec(str))) {
+      const between = str.slice(last, m.index);
+      if (between || !group) {
+        if (between) target.appendChild(document.createTextNode(between));
+        group = el('span', 'cop'); group.dir = 'ltr'; target.appendChild(group);
+      }
+      group.appendChild(el('span', 'f-' + m[1].toLowerCase(), m[2]));
+      last = re.lastIndex;
+    }
+    if (last < str.length) target.appendChild(document.createTextNode(str.slice(last)));
+  }
+  function img(id, cls) {
+    const i = el('img', cls); i.src = (isLive ? '/api/img?id=' : '#') + encodeURIComponent(id); i.alt = ''; i.loading = 'lazy'; i.draggable = false;
+    return i;
+  }
+
+  /* ---------- الاسم وقايمة الامتحانات ---------- */
+  function logout() {
+    const t = getTokens();
+    Object.values(t).forEach(x => x && x.token && store.del(K_ANS + x.token));
+    [K_NAME, K_TOKENS, K_ACTIVE].forEach(k => store.del(k));
+    exam = null; clearInterval(watchDone); clearInterval(tick); clearInterval(beat);
+    guard.off();
+    $('nameInput').value = '';
+    show('nameScreen');
+  }
+  $('logoutBtn').onclick = logout;
+  $('logoutBtn2').onclick = logout;
+  $('backBtn').onclick = () => { clearInterval(watchDone); guard.off(); openList(); };
+
+  $('nameBtn').onclick = () => {
+    const n = $('nameInput').value.trim().replace(/\s+/g, ' ');
+    if (n.length < 3) { $('nameErr').textContent = 'من فضلك اكتب اسمك بالكامل.'; return; }
+    $('nameErr').textContent = '';
+    store.set(K_NAME, n);
+    openList();
+  };
+  $('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('nameBtn').click(); });
+
+  async function openList() {
+    const name = store.get(K_NAME);
+    if (!name) return show('nameScreen');
+    $('helloName').textContent = name;
+    show('listScreen');
+    const box = $('examList');
+    box.innerHTML = '<p class="muted center">جاري التحميل...</p>';
+    $('listErr').textContent = '';
+    try {
+      const { exams } = await api('listExams');
+      box.innerHTML = '';
+      if (!exams.length) { box.appendChild(el('p', 'muted center', 'مفيش امتحانات متاحة دلوقتي.')); return; }
+      const tokens = getTokens();
+      exams.forEach(x => {
+        const mine = tokens[x.id];
+        const item = el('div', 'exam-item');
+        const info = el('div');
+        info.appendChild(el('h3', '', x.title));
+        info.appendChild(el('div', 'meta', '⏱ ' + x.minutes + ' دقيقة • ' + x.count + ' سؤال'));
+        if (mine && mine.done) info.appendChild(el('span', 'tag-done', '✔ سلّمته'));
+        item.appendChild(info);
+        const b = el('button', mine && mine.done ? 'ghost' : '', mine ? (mine.done ? 'نتيجتك' : 'كمّل') : 'ابدأ');
+        b.onclick = () => enterExam(x, mine, b);
+        item.appendChild(b);
+        box.appendChild(item);
+      });
+    } catch (e) { box.innerHTML = ''; $('listErr').textContent = e.message; }
+  }
+
+  async function enterExam(x, mine, btn) {
+    btn.disabled = true;
+    $('listErr').textContent = '';
+    try {
+      if (mine && mine.token) {
+        const d = await api('resumeExam', mine.token);
+        if (d) { if (d.submitted) { setToken(x.id, { done: true }); done('', d); } else begin(d); return; }
+      }
+      const d = await api('startExam', x.id, store.get(K_NAME));
+      setToken(x.id, { token: d.token, done: false });
+      begin(d);
+    } catch (e) { $('listErr').textContent = e.message; }
+    finally { btn.disabled = false; }
+  }
+
+  /* ---------- الامتحان ---------- */
   let exam = null, answers = [], offset = 0, tick = null, beat = null, saveTimer = null, watchDone = null,
       submitting = false, finished = false;
 
-  // نبضة للسيرفر: بتحفظ الإجابات، وبتجيب الوقت لو اتزوّد، وبتعرف لو الامتحان اتسلّم
   async function ping(event) {
     if (!exam || finished) return;
     const t = exam.token;
     try {
-      const res = await api('ping', t, exam.questions.map((_, i) => answers[i] == null ? '' : answers[i]), event || null);
+      const res = await api('ping', t, payload(), event || null);
       if (!exam || exam.token !== t || finished) return;
       if (!res || res.gone) return;
       if (res.submitted) {
         finishLocal();
-        done(res.forced ? 'الامتحان اتسلّم تلقائيًا لأنك خرجت من الصفحة أكتر من المسموح.' : 'الامتحان اتسلّم.', res);
+        done(res.forced === 'leaves' ? 'الامتحان اتسلّم تلقائيًا لأنك خرجت من الصفحة أكتر من المسموح.' :
+             res.forced === 'closed' ? 'الامتحان اتقفل واتسلّم بإجاباتك.' : 'الامتحان اتسلّم.', res);
         return;
       }
       if (res.endsAt) {
-        if (res.endsAt > exam.endsAt + 30000) toast('⏱ أستاذ مينا زوّدلك وقت');
+        if (res.endsAt > exam.endsAt + 30000) toast('⏱ المدرس زوّدلك وقت');
         exam.endsAt = res.endsAt;
         offset = res.serverNow - Date.now();
       }
@@ -337,27 +458,14 @@
   }
   guard.onReport(ev => ping(ev));
 
-  function toast(msg) {
-    const t = document.createElement('div');
-    t.className = 'toast';
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 5000);
-  }
+  function payload() { return exam.questions.map((_, i) => (answers[i] == null ? '' : answers[i])); }
 
   function finishLocal() {
     finished = true;
     clearInterval(tick); clearInterval(beat); clearTimeout(saveTimer);
     guard.stop();
-    if (exam) store.del(LS_ANS + exam.token);
-  }
-
-  function show(screen) {
-    ['startScreen', 'examScreen', 'doneScreen'].forEach(id => $(id).classList.toggle('hidden', id !== screen));
-    if (screen !== 'doneScreen') $('reviewScreen').classList.add('hidden');
-    $('timer').classList.toggle('hidden', screen !== 'examScreen');
-    $('submitBar').classList.toggle('hidden', screen !== 'examScreen');
-    document.body.classList.toggle('in-exam', screen !== 'startScreen');
+    if (exam) { store.del(K_ANS + exam.token); setToken(exam.examId, { done: true }); }
+    store.del(K_ACTIVE);
   }
 
   function begin(data) {
@@ -368,19 +476,18 @@
     $('submitBtn').disabled = false;
     $('submitBtn').textContent = 'تسليم الامتحان';
     $('submitBtn').dataset.confirm = '';
-    offset = data.serverNow - Date.now();   // تصحيح فرق ساعة الجهاز
-    store.set(LS_TOKEN, data.token);
+    offset = data.serverNow - Date.now();
+    store.set(K_ACTIVE, data.token);
+    setToken(data.examId, { token: data.token, done: false });
     let local = [];
-    try { local = JSON.parse(store.get(LS_ANS + data.token)) || []; } catch (e) {}
-    // الإجابات: اللي على الجهاز، ولو مفيش (موبايل تاني أو اتفتحله تاني) اللي محفوظة على السيرفر
+    try { local = JSON.parse(store.get(K_ANS + data.token)) || []; } catch (e) {}
     answers = local.some(a => String(a || '').trim()) ? local : (data.answers || []).slice();
-    $('titleStart').textContent = data.title;
+    $('brandTitle').textContent = data.title;
     document.title = data.title;
     $('studentName').textContent = data.name;
     guard.start(data.name, { leaves: data.leaves, maxLeaves: data.maxLeaves });
     renderQuestions();
     show('examScreen');
-    window.scrollTo(0, 0);
     updateTimer();
     tick = setInterval(updateTimer, 250);
     beat = setInterval(() => ping(), 10000);
@@ -391,69 +498,47 @@
     const form = $('examForm');
     form.innerHTML = '';
     exam.questions.forEach((q, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      const t = document.createElement('div');
-      t.className = 'q-title';
-      t.innerHTML = '<span class="q-num">' + (i + 1) + '.</span> ';
+      const card = el('div', 'card');
+      const t = el('div', 'q-title');
+      t.appendChild(el('span', 'q-num', String(i + 1)));
       richText(t, q.text);
       card.appendChild(t);
-      if (q.choices.length) {
-        q.choices.forEach((c, j) => {
-          const lab = document.createElement('label');
-          lab.className = 'choice';
-          const inp = document.createElement('input');
-          inp.type = 'radio'; inp.name = 'q' + i; inp.value = String(j + 1);
-          if (answers[i] === String(j + 1)) inp.checked = true;
-          inp.addEventListener('change', () => save(i, inp.value));
-          lab.appendChild(inp);
-          const span = document.createElement('span');
-          richText(span, c);
-          lab.appendChild(span);
-          card.appendChild(lab);
-        });
-      } else {
-        const inp = document.createElement('input');
-        inp.type = 'text'; inp.placeholder = 'إجابتك'; inp.value = answers[i] || '';
+      if (q.image) card.appendChild(img(q.image, 'q-img'));
+      if (q.type === 'text') {
+        const inp = el('input'); inp.type = 'text'; inp.placeholder = 'اكتب إجابتك هنا'; inp.value = answers[i] || '';
         if (FONTS[q.inputFont]) { inp.className = 'cop-input f-' + q.inputFont; inp.placeholder = ''; inp.autocapitalize = 'off'; inp.spellcheck = false; }
         inp.addEventListener('input', () => save(i, inp.value));
         card.appendChild(inp);
+      } else {
+        const multi = q.type === 'multi';
+        if (multi) card.appendChild(el('div', 'q-hint', '☑ اختار كل الإجابات الصح (ممكن أكتر من واحدة)'));
+        const picked = new Set(String(answers[i] || '').split(',').filter(Boolean));
+        q.choices.forEach((c, j) => {
+          const lab = el('label', 'choice');
+          const inp = el('input'); inp.type = multi ? 'checkbox' : 'radio'; inp.name = 'q' + i; inp.value = String(j + 1);
+          inp.checked = picked.has(String(j + 1));
+          inp.addEventListener('change', () => {
+            if (multi) save(i, [...card.querySelectorAll('input:checked')].map(x => x.value).sort((a, b) => a - b).join(','));
+            else save(i, inp.value);
+          });
+          lab.appendChild(inp);
+          const body = el('span', 'c-body');
+          if (c.text) { const s = el('span'); richText(s, c.text); body.appendChild(s); }
+          if (c.image) body.appendChild(img(c.image, 'c-img'));
+          lab.appendChild(body);
+          card.appendChild(lab);
+        });
       }
       form.appendChild(card);
     });
   }
 
-  // [ath]..[/ath] / [newath] / [cs] / [shen] → كلام بالخط القبطي
-  const FONTS = { ath: 1, newath: 1, cs: 1, shen: 1 };
-  function richText(el, str) {
-    const re = /\[(ath|newath|cs|shen)\]([\s\S]*?)\[\/\1\]/gi;
-    let last = 0, m, group = null;
-    str = String(str);
-    // الأجزاء القبطية اللي جنب بعض (حتى لو بخطين مختلفين) بتتجمع في كلمة واحدة من الشمال لليمين
-    while ((m = re.exec(str))) {
-      const between = str.slice(last, m.index);
-      if (between || !group) {
-        if (between) el.appendChild(document.createTextNode(between));
-        group = document.createElement('span');
-        group.className = 'cop';
-        group.dir = 'ltr';
-        el.appendChild(group);
-      }
-      const s = document.createElement('span');
-      s.className = 'f-' + m[1].toLowerCase();
-      s.textContent = m[2];
-      group.appendChild(s);
-      last = re.lastIndex;
-    }
-    if (last < str.length) el.appendChild(document.createTextNode(str.slice(last)));
-  }
-
   function save(i, v) {
     if (finished) return;
     answers[i] = v;
-    store.set(LS_ANS + exam.token, JSON.stringify(answers));
+    store.set(K_ANS + exam.token, JSON.stringify(answers));
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => ping(), 2500);   // الإجابة تتحفظ على السيرفر كمان
+    saveTimer = setTimeout(() => ping(), 2500);
   }
 
   function updateTimer() {
@@ -468,16 +553,15 @@
     if (submitting) return;
     if (!auto && !confirmSubmit()) return;
     submitting = true;
+    const ans = payload();
     finishLocal();
     $('examForm').classList.add('locked');
     $('submitBtn').disabled = true;
     $('submitBtn').textContent = 'جاري التسليم...';
     $('submitErr').textContent = '';
-    const payload = exam.questions.map((_, i) => answers[i] == null ? '' : answers[i]);
     for (let attempt = 1; attempt <= 5; attempt++) {
       try {
-        const res = await api('submitExam', exam.token, payload);
-        // التوكن بيفضل محفوظ: لو عمل refresh يشوف نتيجته ومراجعته بدل ما يبدأ امتحان جديد
+        const res = await api('submitExam', exam.token, ans);
         done(auto ? 'الوقت خلص والامتحان اتسلّم تلقائيًا.' : 'إجاباتك وصلت بنجاح.', res);
         return;
       } catch (e) {
@@ -488,7 +572,8 @@
     submitting = false;
     $('submitBtn').disabled = false;
     $('submitBtn').textContent = 'إعادة محاولة التسليم';
-    $('submitErr').textContent = 'التسليم لم يكتمل. تأكد من النت واضغط إعادة المحاولة. إجاباتك محفوظة.';
+    $('submitErr').textContent = 'التسليم لم يكتمل. تأكد من النت واضغط إعادة المحاولة.';
+    store.set(K_ANS + exam.token, JSON.stringify(ans));
   }
 
   function confirmSubmit() {
@@ -501,108 +586,90 @@
     return false;
   }
 
+  /* ---------- النتيجة والمراجعة ---------- */
   function done(reason, res) {
-    guard.reviewMode(res && res.name);
-    $('doneReason').textContent = reason;
-    const showScore = !!(res && res.showScore && res.score != null);
+    res = res || {};
+    if (res.examId) setToken(res.examId, { done: true });
+    store.del(K_ACTIVE);
+    if (res.title) { $('brandTitle').textContent = res.title; document.title = res.title; }
+    guard.reviewMode(res.name || (exam && exam.name));
+    $('doneReason').textContent = reason || '';
+    const showScore = !!(res.showScore && res.score != null);
     $('scoreBox').classList.toggle('hidden', !showScore);
     if (showScore) $('scoreVal').textContent = res.score + ' / ' + res.total;
     show('doneScreen');
-    renderReview(res && res.review);
-    // لو أستاذ مينا فتحله الامتحان تاني (وقت إضافي) الصفحة بترجع للامتحان لوحدها
+    renderReview(res.review);
+    // لو المدرس فتحله الامتحان تاني (وقت إضافي) الصفحة بترجع للامتحان لوحدها
     clearInterval(watchDone);
-    const t = store.get(LS_TOKEN);
-    if (t && isLive) watchDone = setInterval(async () => {
+    const tok = res.examId && getTokens()[res.examId] && getTokens()[res.examId].token;
+    if (tok && isLive) watchDone = setInterval(async () => {
+      if ($('doneScreen').classList.contains('hidden')) return clearInterval(watchDone);
       try {
-        const d = await api('resumeExam', t);
-        if (d && !d.submitted && d.questions) { clearInterval(watchDone); begin(d); toast('⏱ أستاذ مينا فتحلك الامتحان تاني'); }
+        const d = await api('resumeExam', tok);
+        if (d && !d.submitted && d.questions) { clearInterval(watchDone); begin(d); toast('⏱ المدرس فتحلك الامتحان تاني'); }
       } catch (e) {}
     }, 15000);
   }
 
-  // مراجعة بعد التسليم: نص بس، من غير أي خانات يقدر يغيّرها
   function renderReview(review) {
     const box = $('reviewList');
     box.innerHTML = '';
     if (!review || !review.length) { $('reviewScreen').classList.add('hidden'); return; }
     review.forEach((q, i) => {
-      const card = document.createElement('div');
-      card.className = 'card';
-      const st = document.createElement('span');
-      st.className = 'rv-status ' + (q.ok ? 'ok' : 'bad');
-      st.textContent = q.ok ? '✔ صح' : '✘ غلط';
-      card.appendChild(st);
-      const t = document.createElement('div');
-      t.className = 'q-title';
-      t.innerHTML = '<span class="q-num">' + (i + 1) + '.</span> ';
+      const card = el('div', 'card');
+      card.appendChild(el('span', 'rv-status ' + (q.ok ? 'ok' : 'bad'), q.ok ? '✔ صح' : '✘ غلط'));
+      const t = el('div', 'q-title');
+      t.appendChild(el('span', 'q-num', String(i + 1)));
       richText(t, q.text);
       card.appendChild(t);
-      if (q.choices.length) {
-        if (!q.picked) addLine(card, 'لم تجب على هذا السؤال', 'muted');
+      if (q.image) card.appendChild(img(q.image, 'q-img'));
+      if (q.type !== 'text') {
+        const picked = q.picked || [], correct = q.correct || [];
+        if (!picked.length) card.appendChild(el('div', 'rv-line muted', 'لم تجب على هذا السؤال'));
         q.choices.forEach((c, j) => {
-          const n = j + 1, isPick = n === q.picked, isRight = n === q.correct;
-          const row = document.createElement('div');
-          row.className = 'rv-choice' + (isRight ? ' rv-right' : (isPick ? ' rv-wrong' : ''));
-          const mk = document.createElement('span');
-          mk.className = 'mark';
-          mk.textContent = isRight ? '✔' : (isPick ? '✘' : '');
+          const n = j + 1, isPick = picked.includes(n), isRight = correct.includes(n);
+          const row = el('div', 'rv-choice' + (isRight ? ' rv-right' : (isPick ? ' rv-wrong' : '')));
+          const mk = el('span', 'mark', isRight ? '✔' : (isPick ? '✘' : ''));
           mk.style.color = isRight ? 'var(--ok)' : 'var(--danger)';
           row.appendChild(mk);
-          const sp = document.createElement('span');
-          richText(sp, c);
-          row.appendChild(sp);
-          if (isPick || isRight) {
-            const tag = document.createElement('span');
-            tag.className = 'rv-tag';
-            tag.textContent = isPick && isRight ? 'إجابتك (صح)' : isPick ? 'إجابتك' : 'الإجابة الصحيحة';
-            row.appendChild(tag);
-          }
+          const body = el('span', 'c-body');
+          if (c.text) { const s = el('span'); richText(s, c.text); body.appendChild(s); }
+          if (c.image) body.appendChild(img(c.image, 'c-img'));
+          row.appendChild(body);
+          if (isPick || isRight) row.appendChild(el('span', 'rv-tag', isPick && isRight ? 'إجابتك (صح)' : isPick ? 'إجابتك' : 'الإجابة الصحيحة'));
           card.appendChild(row);
         });
       } else {
-        const g = addLine(card, 'إجابتك: ', '');
-        const gs = document.createElement('b');
-        gs.textContent = q.given || '—';
-        gs.style.color = q.ok ? 'var(--ok)' : 'var(--danger)';
-        g.appendChild(gs);
-        if (!q.ok && q.correctText) { const c = addLine(card, 'الإجابة الصحيحة: ', ''); const b = document.createElement('b'); richText(b, q.correctText); b.style.color = 'var(--ok)'; c.appendChild(b); }
+        const g = el('div', 'rv-line', 'إجابتك: ');
+        const gs = el('b', '', q.given || '—'); gs.style.color = q.ok ? 'var(--ok)' : 'var(--danger)';
+        g.appendChild(gs); card.appendChild(g);
+        if (!q.ok && q.correctText && q.correctText.length) {
+          const c = el('div', 'rv-line', 'الإجابة الصحيحة: ');
+          q.correctText.forEach((a, k) => { if (k) c.appendChild(document.createTextNode(' أو ')); const b = el('b'); b.style.color = 'var(--ok)'; richText(b, a); c.appendChild(b); });
+          card.appendChild(c);
+        }
       }
       box.appendChild(card);
     });
     $('reviewScreen').classList.remove('hidden');
   }
-  function addLine(parent, text, cls) {
-    const d = document.createElement('div');
-    d.className = 'rv-line ' + cls;
-    d.textContent = text;
-    parent.appendChild(d);
-    return d;
-  }
 
-  /* ---------- الأحداث ---------- */
-  $('startBtn').addEventListener('click', async () => {
-    const name = $('nameInput').value;
-    $('startErr').textContent = '';
-    $('startBtn').disabled = true;
-    try { begin(await api('startExam', name)); }
-    catch (e) { $('startErr').textContent = e.message || 'حصل خطأ، حاول تاني.'; }
-    finally { $('startBtn').disabled = false; }
-  });
-  $('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('startBtn').click(); });
   $('submitBtn').addEventListener('click', () => submit(false));
   $('examForm').addEventListener('submit', e => e.preventDefault());
 
-  /* ---------- لو الطالب عمل refresh ---------- */
+  /* ---------- أول ما الصفحة تفتح ---------- */
   (async () => {
     if (!isLive) $('demoNote').classList.remove('hidden');
-    const token = store.get(LS_TOKEN);
-    if (!token) return;
-    try {
-      const data = await api('resumeExam', token);
-      if (!data) { store.del(LS_TOKEN); return; }
-      if (data.submitted) { done('أنت سلّمت الامتحان ده قبل كده.', data); return; }
-      begin(data);
-    } catch (e) { /* يفضل على شاشة الاسم */ }
+    const active = store.get(K_ACTIVE);
+    if (active) {
+      try {
+        const d = await api('resumeExam', active);
+        if (d && !d.submitted) return begin(d);
+        if (d && d.submitted) setToken(d.examId, { done: true });
+      } catch (e) {}
+      store.del(K_ACTIVE);
+    }
+    openList();
   })();
 })();
 </script>
